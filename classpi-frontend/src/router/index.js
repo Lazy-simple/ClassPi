@@ -1,4 +1,12 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router';
+import { useUserStore } from '@/store/userStore'; // 导入 Pinia 存储
+import Login from '@/components/Login.vue';
+import Register from '@/components/Register.vue';
+import ForgotPassword from '@/components/ForgotPassword.vue';
+import MainPage from '@/components/MainPage.vue';
+import path from 'path';
+import authService from '@/services/authService';
+
 
 const routes = [
   {
@@ -8,35 +16,42 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('@/views/Login.vue')
+    component: Login
   },
   {
     path: '/register',
     name: 'Register',
-    component: () => import('@/views/Register.vue')
+    component: Register
   },
   {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('@/views/Dashboard.vue'),
-    meta: { requiresAuth: true }
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: ForgotPassword
+  },
+  {
+    path: '/main-page',
+    name: 'MainPage',
+    component:MainPage,
+    meta: { requiresAuth: true } // 标记该路由需要身份验证
   }
-]
+];
 
 const router = createRouter({
   history: createWebHistory(),
   routes
-})
+});
 
-// 路由守卫
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('token')
-  
-  if (to.meta.requiresAuth && !token) {
-    next('/login')
-  } else {
-    next()
-  }
-})
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  const currentUser = authService.getCurrentUser();
 
-export default router
+  if (requiresAuth && !currentUser) {
+    next('/login');
+  } else if (to.path === '/login' && currentUser) {
+    next('/main-page');
+  } else {
+    next();
+  }
+});
+
+export default router;
