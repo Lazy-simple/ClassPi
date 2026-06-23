@@ -2,6 +2,7 @@ package com.classpi.controller;
 
 import com.classpi.common.Result;
 import com.classpi.dto.LoginDTO;
+import com.classpi.dto.RegisterDTO; // 新增导入
 import com.classpi.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -19,8 +20,9 @@ public class UserController {
         return userService.login(loginDTO);
     }
 
+    // 注册接口接收RegisterDTO
     @PostMapping("/register")
-    public Result register(@RequestBody LoginDTO registerDTO) {
+    public Result register(@RequestBody RegisterDTO registerDTO) {
         return userService.register(registerDTO);
     }
 

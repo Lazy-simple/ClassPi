@@ -62,71 +62,85 @@
 </template>
 
 <script>
-    import { ref } from 'vue';
-    import { useRouter } from 'vue-router';
-    import registerService from '@/services/registerService';
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import registerService from '@/services/registerService';
 
-    export default {
-        setup() {
-            const router = useRouter();
-            const selectedIdentity = ref('teacher');
-            const account = ref('');
-            const password = ref('');
-            const confirmPassword = ref('');
-            const name = ref('');
-            const school = ref('');
-            const studentId = ref('');
-    
+export default {
+  setup() {
+    const router = useRouter();
+    const selectedIdentity = ref('teacher');
+    const account = ref('');
+    const password = ref('');
+    const confirmPassword = ref('');
+    const name = ref('');
+    const school = ref('');
+    const studentId = ref('');
+    const calcResult = ref('');
 
-            const handleRegister = async() => {
-            if (password.value !== confirmPassword.value) {
-                alert('两次输入的密码不一致');
-                return;
-            }
-            
-           try {
-                const response = await registerService.register(
-                account.value,
-                password.value,
-                selectedIdentity.value,
-                name.value,
-                school.value,
-                studentId.value
-                );
-                alert('注册成功！');
-                router.push('/login');
-            } catch (error) {
-                // 显示具体错误信息
-                alert(error.response?.data?.message || '注册失败：' + error.message);
-            }
-            };
-            // const users = JSON.parse(localStorage.getItem('users')) || [];
-            // const newUser = {
-            //     email: email.value,
-            //     password: password.value,
-            //     identity: selectedIdentity.value,
-            //     name: name.value,
-            //     school: school.value,
-            //     studentId: studentId.value
-            // };
-            // users.push(newUser);
-            // localStorage.setItem('users', JSON.stringify(users));
-            // alert('注册成功，请登录');
-            // router.push('/login');
-            // };
+    const handleRegister = async() => {
+      // 前端基础验证
+      if (password.value !== confirmPassword.value) {
+        alert('两次输入的密码不一致');
+        return;
+      }
+      if (!account.value || !password.value || !name.value || !school.value) {
+        alert('请填写必填字段（账号、密码、姓名、学校）');
+        return;
+      }
 
-            return {
-            selectedIdentity,
-            account,
-            password,
-            confirmPassword,
-            name,
-            school,
-            studentId,
-            handleRegister
-            };
+      // 临时注释验证码验证
+      // if (calcResult.value !== '12') {
+      //     alert('验证码错误');
+      //     return;
+      // }
+
+      console.log('发送注册请求:', {
+        account: account.value,
+        password: password.value,
+        identity: selectedIdentity.value,
+        name: name.value,
+        school: school.value,
+        studentId: studentId.value
+      });
+
+      try {
+        const response = await registerService.register(
+            account.value,
+            password.value,
+            selectedIdentity.value,
+            name.value,
+            school.value,
+            studentId.value
+        );
+
+        console.log('注册响应:', response);
+
+        if (response.code === 200) {
+          alert('注册成功！');
+          router.push('/login');
+        } else {
+          alert(response.msg || '注册失败');
         }
+      } catch (error) {
+        console.error('注册错误:', error);
+        alert(error.response?.data?.msg || error.response?.data || '注册失败：网络异常');
+      }
     };
+
+    return {
+      selectedIdentity,
+      account,
+      password,
+      confirmPassword,
+      name,
+      school,
+      studentId,
+      calcResult,
+      handleRegister
+    };
+  }
+};
 </script>
 
 <style scoped>

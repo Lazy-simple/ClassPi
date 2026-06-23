@@ -130,22 +130,33 @@
         //     }
         // };
 
-        
-        const handleLogin = () => {
-            if (activeTab.value === 'account') {
-                authService.login(account.value, password.value)
-                   .then(response => {
-                        const token = response.token;
-                        const user = { username: account.value }; // 这里需要根据后端返回的用户信息进行修改
-                        userStore.setUser(token, user, autoLogin.value);
-                        router.push('/main-page');
-                        alert('登录成功');
-                    })
-                   .catch(error => {
-                        alert('账号或密码错误');
-                    });
-            }
-        };
+
+      const handleLogin = () => {
+        if (activeTab.value === 'account') {
+          // 显示加载状态
+          console.log('开始登录...', account.value);
+
+          authService.login(account.value, password.value)
+              .then(response => {
+                console.log('登录成功:', response);
+
+                // 存储用户信息到 Pinia
+                userStore.setUser(
+                    response.token,
+                    response.user,
+                    autoLogin.value
+                );
+
+                // 跳转到主页面
+                router.push('/main-page');
+                alert('登录成功！欢迎 ' + (response.user?.name || response.user?.username || '用户'));
+              })
+              .catch(error => {
+                console.error('登录失败:', error);
+                alert(error.message || '账号或密码错误');
+              });
+        }
+      };
 
 
         const handleWechatLogin = () => {
