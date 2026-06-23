@@ -1,5 +1,6 @@
 package com.classpi.service.impl;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.classpi.common.Result;
 import com.classpi.dto.LoginDTO;
 import com.classpi.dto.RegisterDTO; // 新增导入
@@ -12,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils; // 密码加密用
 
 @Service
-public class UserServiceImpl implements UserService {
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService  {
 
     @Autowired
     private UserMapper userMapper;
