@@ -15,6 +15,14 @@ export function getHomeworkList(params) {
   return request({ url: '/homework/list', method: 'get', params })
 }
 
+// 【新增】获取单个作业详情（解决报错）
+export function getAssignmentDetail(id) {
+  return request({
+    url: `/homework/detail/${id}`,
+    method: 'get'
+  })
+}
+
 // 教师批阅作业录入成绩
 export function checkHomework(data) {
   return request({ url: '/homework/check', method: 'post', data })

@@ -47,22 +47,42 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 })
-/*
-// 修复后的路由守卫
+// 修复并完善后的路由守卫
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
-  const token = userStore.token
+  const token = userStore.token // 假设 token 也保存在 store 里
   const role = userStore.userInfo?.role
 
-  if (to.path === '/login' || to.path === '/register' || to.path === '/forgot-password') {
+  // 1. 白名单：登录、注册等页面不需要权限，直接放行
+  const whiteList = ['/login', '/register', '/forgot-password']
+  if (whiteList.includes(to.path)) {
     next()
     return
   }
+
+  // 2. 检查是否已登录 (是否有 token)
   if (!token) {
-    next('/login')
+    next('/login') // 没登录就跳去登录页
     return
   }
+
+  // 3. 权限校验
+  // 如果访问的是老师页面，但角色不是老师
+  if (to.path.startsWith('/main') && to.path !== '/main/student-course' && role !== 1) {
+     ElMessage.error('您没有权限访问该页面')
+     next('/main/student-course') // 踢回学生页面
+     return
+  }
+
+  // 如果访问的是学生页面，但角色不是学生
+  if (to.path === '/main/student-course' && role !== 2) {
+     ElMessage.error('您没有权限访问该页面')
+     next('/main/dashboard') // 踢回老师页面
+     return
+  }
+
+  // 4. 其他情况，正常放行
   next()
 })
-*/
+
 export default router

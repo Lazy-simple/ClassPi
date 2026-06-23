@@ -8,3 +8,12 @@ export function aiEvaluate(data) {
     data
   })
 }
+
+// 新增：获取作业列表
+export function getHomeworkList(params) {
+  return request({
+    url: '/homework/list',
+    method: 'get',
+    params
+  })
+}
