@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 
-// 登录接口
+// 登录
 export function login(data) {
   return request({
     url: '/user/login',
@@ -9,7 +9,7 @@ export function login(data) {
   })
 }
 
-// 注册接口
+// 注册
 export function register(data) {
   return request({
     url: '/user/register',
@@ -26,10 +26,10 @@ export function getUserInfo() {
   })
 }
 
-// 忘记密码 (新增)
-export function forgotPassword(data) {
+// 忘记密码发送验证码
+export function sendResetCode(data) {
   return request({
-    url: '/user/forgot-password', // 假设后端是这个路径，根据实际调整
+    url: '/user/sendResetCode',
     method: 'post',
     data
   })
