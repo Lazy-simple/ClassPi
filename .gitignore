@@ -1,3 +1,19 @@
+<<<<<<< HEAD
+# 依赖包
+node_modules/
+# Vite 缓存
+node_modules/.vite/
+# 打包产物
+dist/
+# 环境变量
+.env
+.env.local
+# 编辑器、系统文件
+.idea/
+.vscode/
+*.log
+.DS_Store
+=======
 # Compiled class files
 *.class
 
@@ -53,3 +69,4 @@ Thumbs.db
 
 # Spring Boot
 spring-shell.log
+>>>>>>> 0ef242d55d117043086f247429471accbf085ff9
