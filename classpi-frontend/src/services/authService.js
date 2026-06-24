@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // 修改为正确的后端地址
-const API_URL = 'http://localhost:8080/api/user';  // 改成 /user 而不是 /auth
+const API_URL = 'http://localhost:8080/user';  // 改成 /user 而不是 /auth
 
 class AuthService {
     login(username, password) {
