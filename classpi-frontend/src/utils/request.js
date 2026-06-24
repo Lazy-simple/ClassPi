@@ -1,44 +1,52 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import router from '@/router'
+import { useUserStore } from '@/store/user'
 
-const request = axios.create({
-  baseURL: '/api',
-  timeout: 5000
+const service = axios.create({
+  // 【关键修改】直接指向后端地址
+  baseURL: 'http://localhost:8080',
+  timeout: 10000
 })
 
 // 请求拦截器
-request.interceptors.request.use(
-  config => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = token
+service.interceptors.request.use(
+  (config) => {
+    // 注意：这里最好用 Pinia 的 storeToRefs 或者确保 store 已初始化
+    // 如果这里报错 "getActivePinia was called with no active Pinia"，请看下方的【重要提示】
+    try {
+      const userStore = useUserStore()
+      if (userStore.token) {
+        config.headers.Authorization = userStore.token
+      }
+    } catch (e) {
+      console.warn('Store not ready in interceptor')
     }
     return config
   },
-  error => {
-    return Promise.reject(error)
-  }
+  (err) => Promise.reject(err)
 )
 
 // 响应拦截器
-request.interceptors.response.use(
-  response => {
-    const res = response.data
-    if (res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
-      if (res.code === 401) {
-        localStorage.removeItem('token')
-        router.push('/login')
-      }
-      return Promise.reject(new Error(res.message || '请求失败'))
+service.interceptors.response.use(
+  (res) => {
+    const data = res.data
+    // 假设后端返回格式是 { code: 200, data: ..., msg: ... }
+    if (data.code === 200) {
+      return data
+    } else {
+      ElMessage.error(data.msg || '系统繁忙')
+      return Promise.reject(new Error(data.msg || 'Error'))
     }
-    return res
   },
-  error => {
-    ElMessage.error(error.message || '网络错误')
-    return Promise.reject(error)
+  (err) => {
+    // 处理 HTTP 错误状态码 (404, 500 等)
+    if (err.response && err.response.status) {
+      ElMessage.error(`请求失败: ${err.response.status}`)
+    } else {
+      ElMessage.error('网络连接异常')
+    }
+    return Promise.reject(err)
   }
 )
 
-export default request
+export default service
