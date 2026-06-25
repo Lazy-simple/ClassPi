@@ -1,6 +1,6 @@
 # Java后端编译文件
 *.class
-target/
+classpi-backend/target/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -27,11 +27,11 @@ buildNumber.properties
 *.ipr
 *.iws
 
-# 前端Node依赖&打包（和你node_modules同级，路径完全匹配）
-node_modules/
-dist/
-build/
-node_modules/.vite/
+# 前端Node依赖&打包（适配子文件夹classpi-frontend）
+classpi-frontend/node_modules/
+classpi-frontend/dist/
+classpi-frontend/build/
+classpi-frontend/node_modules/.vite/
 *.local
 
 # 系统缓存
@@ -46,6 +46,7 @@ spring-shell.log
 .env
 .env.local
 .env.*.local
+classpi-backend/.env
 
 # 数据库文件
 *.sql
