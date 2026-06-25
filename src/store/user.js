@@ -2,15 +2,13 @@ import { defineStore } from 'pinia'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    // 初始化时尝试从本地存储获取，如果失败则默认为空
+    // 初始化时统一读取本地存储，同时处理 userInfo
     token: localStorage.getItem('token') || sessionStorage.getItem('token') || '',
     userInfo: null
   }),
 
   getters: {
-    // 增加一个判断是否已登录的快捷属性
     isLoggedIn: (state) => !!state.token,
-    // 增加一个获取角色的快捷属性
     userRole: (state) => state.userInfo?.role || null
   },
 
@@ -25,8 +23,6 @@ export const useUserStore = defineStore('user', {
       this.token = data.token;
       this.userInfo = data.userInfo;
 
-      // 将数据存入 localStorage (长期保存)
-      // 如果你想区分“记住我”，可以在这里加判断，目前默认都存 localStorage
       localStorage.setItem('token', this.token);
       localStorage.setItem('userInfo', JSON.stringify(this.userInfo));
     },
@@ -47,7 +43,6 @@ export const useUserStore = defineStore('user', {
       this.token = '';
       this.userInfo = null;
 
-      // 清除所有相关的本地存储
       localStorage.removeItem('token');
       localStorage.removeItem('userInfo');
       sessionStorage.removeItem('token');
@@ -55,11 +50,12 @@ export const useUserStore = defineStore('user', {
     },
 
     /**
-     * 初始化检查（可选）：在 App.vue 中调用，防止刷新页面后 userInfo 丢失
+     * 初始化检查：读取本地存储恢复用户信息，防止刷新丢失
      */
     initFromStorage() {
-      const storedToken = localStorage.getItem('token');
-      const storedInfo = localStorage.getItem('userInfo');
+      // 优先读 localStorage，兼容 sessionStorage（可选）
+      const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const storedInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
 
       if (storedToken) {
         this.token = storedToken;
@@ -69,9 +65,10 @@ export const useUserStore = defineStore('user', {
           this.userInfo = JSON.parse(storedInfo);
         } catch (e) {
           console.error('解析用户信息失败', e);
-          this.logout(); // 如果解析失败，说明数据损坏，强制登出
+          this.logout(); // 数据损坏则强制登出
         }
       }
     }
   }
 })
+

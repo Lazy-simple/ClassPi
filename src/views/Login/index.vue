@@ -102,6 +102,8 @@ import { ref, computed, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/store/user'
+// 引入登录接口（你的api/user.js里的login）
+import { login } from '@/api/user'
 
 const router = useRouter();
 const activeTab = ref('account');
@@ -111,10 +113,10 @@ const phone = ref('');
 const smsCode = ref('');
 const autoLogin = ref(false);
 const countdown = ref(0);
-
 // --- 微信二维码相关变量 ---
 const qrCodeUrl = ref('');
 const qrLoading = ref(false);
+let timer = null;
 
 // 计算指示条位置
 const indicatorLeft = computed(() => {
@@ -123,72 +125,104 @@ const indicatorLeft = computed(() => {
   return '66.66%';
 });
 
-let timer = null;
 const sendSmsCode = () => {
   if (!phone.value) return ElMessage.warning('请先输入手机号');
   if (countdown.value > 0) return;
   countdown.value = 60;
   ElMessage.success('验证码已发送');
-  // 模拟发送
   timer = setInterval(() => {
     countdown.value--;
     if (countdown.value <= 0) clearInterval(timer);
   }, 1000);
 };
 
-const userStore = useUserStore() // 实例化 store
+const userStore = useUserStore()
 
-const handleLogin = () => {
+// 登录核心方法（账号+短信统一身份跳转）
+// 登录核心方法（账号+短信统一身份跳转）
+const handleLogin = async () => {
   if (activeTab.value === 'account') {
-    if (!account.value || !password.value) return ElMessage.warning('请输入账号和密码');
+    if (!account.value || !password.value) {
+      ElMessage.warning('请输入账号和密码');
+      return;
+    }
 
-    // --- 模拟登录成功逻辑开始 ---
-    ElMessage.success('登录成功');
+    try {
+      const res = await login({
+        username: account.value,
+        password: password.value
+      });
 
-   // 假设 res.data 是后端返回的数据
-   const loginData = {
-     token: res.data.token,
-     userInfo: res.data.userInfo // 必须包含 role 字段，例如 role: 1 (老师) 或 2 (学生)
-   };
+      console.log('登录响应:', res);
 
-   // 1. 存入 Store
-   userStore.setUser(loginData);
+      if (res.code !== 200 && res.code !== 0) {
+        ElMessage.error(res.message || '登录失败');
+        return;
+      }
 
-   // 2. 根据角色跳转
-   if (loginData.userInfo.role === 1) { // 假设 1 是老师
-     router.push('/main/dashboard');
-   } else {
-     router.push('/main/student-course');
-   }
-    // --- 模拟登录成功逻辑结束 ---
+      if (!res.data) {
+        ElMessage.error('登录数据为空');
+        return;
+      }
 
-  } else if (activeTab.value === 'sms') {
-    if (!phone.value || !smsCode.value) return ElMessage.warning('请输入手机号和验证码');
-    ElMessage.success('登录成功');
-    router.push('/main');
+      // ✅ 适配：后端直接返回用户信息
+      const userInfo = res.data;
+
+      // ✅ 检查必要字段
+      if (!userInfo.identity) {
+        ElMessage.error('用户身份信息缺失');
+        return;
+      }
+
+      // ✅ 生成临时 token（实际项目应该从后端获取）
+      // 方式1：使用 btoa 编码
+      const token = btoa(JSON.stringify({
+        id: userInfo.id,
+        username: userInfo.username,
+        timestamp: Date.now()
+      }));
+
+      // 方式2：如果后端返回了 token 就用后端的
+      // const token = userInfo.token || 'temp-token';
+
+      ElMessage.success('登录成功');
+
+      // 存储数据
+      userStore.setUser({ token, userInfo });
+      localStorage.setItem('token', token);
+      localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+      // 跳转
+      const identity = userInfo.identity;
+      if (identity === 'teacher') {
+        router.push('/main/dashboard');
+      } else if (identity === 'student') {
+        router.push('/main/student-course');
+      } else {
+        ElMessage.warning('未知身份: ' + identity);
+      }
+
+    } catch (err) {
+      console.error('登录错误:', err);
+      ElMessage.error(err.response?.data?.msg || err.msg || '账号或密码错误');
+    }
   }
 };
 
-// --- 微信登录相关方法 ---
 
-// 切换到微信Tab时触发
+// 切换微信tab
 const switchToWechat = () => {
   activeTab.value = 'wechat';
   getWechatQrCode();
 };
 
-// 模拟从后端获取二维码
+// 模拟获取微信二维码
 const getWechatQrCode = async () => {
   qrLoading.value = true;
-  qrCodeUrl.value = ''; // 清空旧图
-
+  qrCodeUrl.value = '';
   try {
-    // --- 模拟网络请求延迟 ---
     await new Promise(resolve => setTimeout(resolve, 800));
-
-    // --- 模拟后端返回数据 ---
     qrCodeUrl.value = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=WeChat-Login-Demo';
-
   } catch (error) {
     console.error('获取二维码失败:', error);
     ElMessage.error('获取二维码失败，请重试');
