@@ -7,7 +7,7 @@ spring:
   
   sql:
     init:
-      mode: never
+      mode: always
   
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
@@ -48,3 +48,8 @@ logging:
     com.classpi.mapper: debug
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+deepseek:
+  api:
+    url: https://api.deepseek.com/v1/chat/completions
+    key: ${DEEPSEEK_API_KEY:EMPTY}
