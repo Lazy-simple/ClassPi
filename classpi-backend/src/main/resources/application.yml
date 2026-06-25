@@ -12,7 +12,7 @@ spring:
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://192.168.187.97:3306/team_project?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
+    url: jdbc:mysql://localhost:3306/team_project?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Shanghai
     username: team
     password: 123456
     druid:
