@@ -9,14 +9,13 @@
         #waifu {
             position: fixed !important;
             right: 20px !important;
-            bottom: 20px !important;
+            bottom: 80px !important; /* 给下方输入框留空间 */
             left: auto !important;
             top: auto !important;
             z-index: 9999 !important;
             cursor: move !important;
             pointer-events: auto !important;
             transition: transform 0.3s ease;
-            /* 提升层级，不被页面元素遮挡 */
             user-select: none;
         }
 
@@ -67,22 +66,59 @@
             border-top: 8px solid #f0faff;
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.05));
         }
+
+        /* ========== 优化后的AI问答输入框样式 ========== */
+        .ai-input-box {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 10001;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            width: 260px;
+        }
+        .ai-input-box input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 16px;
+            outline: none;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .ai-input-box button {
+            padding: 8px 16px;
+            border: none;
+            background: linear-gradient(145deg, #409eff, #66b1ff);
+            color: #fff;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+            transition: all 0.2s;
+        }
+        .ai-input-box button:hover {
+            background: linear-gradient(145deg, #66b1ff, #409eff);
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
 <div id="app"></div>
 
+<!-- AI问答输入区域（移到下方，和模型居中对齐） -->
+<div class="ai-input-box">
+    <input type="text" id="aiQuestion" placeholder="向AI提问...">
+    <button id="sendBtn">提问</button>
+</div>
+
 <!-- Live2D 挂件核心脚本 -->
 <script src="https://cdn.jsdelivr.net/gh/stevenjoezhang/live2d-widget/autoload.js"></script>
 
 <script>
-    // ===================== 1. 身份配置（重点：对接登录接口）=====================
-    // 【这里根据登录账号赋值】
-    // 学生：userIdentify = "student"
-    // 老师：userIdentify = "teacher"
-    let userIdentify = "student"; // 默认学生，登录逻辑修改此处
-
-    // 分身份配置文案
+    // ===================== 1. 身份配置 =====================
+    let userIdentify = "student";
     const textConfig = {
         student: [
             "上课要坐端正哦！",
@@ -101,8 +137,6 @@
             "用心对待每一位学生"
         ]
     };
-
-    // 根据身份取出对应文案列表
     const dialogList = textConfig[userIdentify] || textConfig.student;
 
     // ===================== 2. 初始化气泡 =====================
@@ -110,15 +144,13 @@
     tipsBox.className = 'my-custom-tips';
     document.body.appendChild(tipsBox);
 
-    // 展示文字方法
     function showText(text) {
         const waifu = document.getElementById('waifu');
         if (!waifu) return;
         const rect = waifu.getBoundingClientRect();
         let targetLeft = rect.left + (rect.width / 2) - 110;
-        let targetBottom = window.innerHeight - rect.top - 25;
+        let targetBottom = window.innerHeight - rect.top - 30;
 
-        // 边界防溢出
         if (targetLeft < 10) targetLeft = 10;
         if (targetLeft + 220 > window.innerWidth) targetLeft = window.innerWidth - 230;
 
@@ -136,7 +168,7 @@
         }, 3500);
     }
 
-    // ===================== 3. 【彻底修复拖拽】核心代码 =====================
+    // ===================== 3. 拖拽功能 =====================
     function enableDrag() {
         const waifu = document.getElementById('waifu');
         if (!waifu) return;
@@ -145,23 +177,21 @@
         let offsetX = 0;
         let offsetY = 0;
 
-        // 使用捕获模式，绕过 Live2D 内部事件拦截
         waifu.addEventListener('mousedown', function(e) {
-            e.stopPropagation(); // 阻止事件冒泡
+            e.stopPropagation();
             isDragging = true;
             offsetX = e.clientX - waifu.offsetLeft;
             offsetY = e.clientY - waifu.offsetTop;
             waifu.style.transition = 'none';
-        }, true); // true = 事件捕获
+        }, true);
 
         document.addEventListener('mousemove', function(e) {
             if (!isDragging) return;
             let x = e.clientX - offsetX;
             let y = e.clientY - offsetY;
 
-            // 限制不超出可视区域
             const maxX = window.innerWidth - waifu.offsetWidth;
-            const maxY = window.innerHeight - waifu.offsetHeight;
+            const maxY = window.innerHeight - waifu.offsetHeight - 80; // 给输入框留空间
             x = Math.max(0, Math.min(x, maxX));
             y = Math.max(0, Math.min(y, maxY));
 
@@ -179,29 +209,56 @@
         });
     }
 
-    // ===================== 4. 页面初始化 =====================
+    // ===================== 4. AI问答逻辑 =====================
+    const aiInput = document.getElementById('aiQuestion');
+    const sendBtn = document.getElementById('sendBtn');
+
+    async function getAiAnswer(question) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        return `AI已收到：${question}\n我会尽力为你解答！`;
+    }
+
+    async function handleSend() {
+        const q = aiInput.value.trim();
+        if (!q) {
+            showText("请输入问题哦~");
+            return;
+        }
+        showText("AI思考中...");
+        aiInput.value = "";
+
+        try {
+            const ans = await getAiAnswer(q);
+            showText(ans);
+        } catch (err) {
+            showText("请求出错啦，请重试");
+            console.error(err);
+        }
+    }
+
+    sendBtn.addEventListener('click', handleSend);
+    aiInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleSend();
+    });
+
+    // ===================== 5. 页面初始化 =====================
     window.addEventListener('load', () => {
-        // 延长等待，确保 Live2D 完全加载
         setTimeout(() => {
             const waifu = document.getElementById('waifu');
             if (!waifu) return;
 
-            // 初始固定在右下角
             waifu.style.right = '20px';
-            waifu.style.bottom = '20px';
+            waifu.style.bottom = '80px'; // 给下方输入框留空间
             waifu.style.left = 'auto';
             waifu.style.top = 'auto';
 
-            // 启用拖拽
             enableDrag();
 
-            // 点击弹出对应身份文案
             waifu.onclick = () => {
                 let randomText = dialogList[Math.floor(Math.random() * dialogList.length)];
                 showText(randomText);
             };
 
-            // 页面初始欢迎语
             setTimeout(() => {
                 let welcome = userIdentify === "teacher" ? "老师您好，工作顺利！" : "同学你好，好好学习哦！";
                 showText(welcome);
