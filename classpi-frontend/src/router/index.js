@@ -50,10 +50,9 @@ const router = createRouter({
 // 修复并完善后的路由守卫
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
-  const token = userStore.token
-  // 获取用户身份，确保转为小写以防万一，例如 'Student' -> 'student'
-  const identity = userStore.userInfo?.identity?.toLowerCase()
-  console.log('🚀 路由守卫检查 -> Token:', !!token, '| 身份:', identity, '| 目标路径:', to.path)
+  const token = userStore.token // 假设 token 也保存在 store 里
+  const role = userStore.userInfo?.role
+
   // 1. 白名单：登录、注册等页面不需要权限，直接放行
   const whiteList = ['/login', '/register', '/forgot-password']
   if (whiteList.includes(to.path)) {
@@ -61,36 +60,28 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  // 2. 检查是否已登录
+  // 2. 检查是否已登录 (是否有 token)
   if (!token) {
-    next('/login')
+    next('/login') // 没登录就跳去登录页
     return
   }
 
-  // 3. 权限校验（基于字符串 identity）
-  // 规则：访问 /main 下的所有页面都需要特定身份
-
-  // 情况 A：如果是学生身份 ('student')
-  if (identity === 'student') {
-    // 如果学生试图访问非学生页面（比如 dashboard, teacher-course 等），强制跳回学生课程页
-    if (to.path !== '/main/student-course' && to.path !== '/main/submit-homework') {
-      // ElMessage.warning('您是学生账号，已自动跳转至学生页面')
-      next('/main/student-course')
-      return
-    }
+  // 3. 权限校验
+  // 如果访问的是老师页面，但角色不是老师
+  if (to.path.startsWith('/main') && to.path !== '/main/student-course' && role !== 1) {
+     ElMessage.error('您没有权限访问该页面')
+     next('/main/student-course') // 踢回学生页面
+     return
   }
 
-  // 情况 B：如果是老师身份 ('teacher')
-  else if (identity === 'teacher') {
-    // 如果老师试图访问学生专属页面，强制跳回老师仪表盘
-    if (to.path === '/main/student-course' || to.path === '/main/submit-homework') {
-      // ElMessage.warning('您是教师账号，已自动跳转至教师页面')
-      next('/main/dashboard')
-      return
-    }
+  // 如果访问的是学生页面，但角色不是学生
+  if (to.path === '/main/student-course' && role !== 2) {
+     ElMessage.error('您没有权限访问该页面')
+     next('/main/dashboard') // 踢回老师页面
+     return
   }
 
-  // 4. 其他情况（身份未知或匹配成功），正常放行
+  // 4. 其他情况，正常放行
   next()
 })
 

@@ -4,14 +4,15 @@
     <aside class="sidebar">
       <!-- Logo区域 -->
       <div class="logo-box">
+        <!-- 请确保你的 assets 路径正确，或者暂时注释掉 img 标签防止报错 -->
         <img src="@/assets/image/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'" />
         <span class="logo-text">课堂派 ClassPi</span>
       </div>
 
       <!-- 菜单组件插槽 -->
       <div class="menu-area">
-        <!-- 核心修改点：使用动态组件 -->
-        <!-- 根据 userIdentity 的值，动态加载对应的菜单组件 -->
+        <!-- ⚠️ 核心修改点：使用动态组件 -->
+        <!-- 根据用户角色 role 的值，动态加载对应的菜单组件 -->
         <component :is="currentSidebar" />
       </div>
     </aside>
@@ -46,39 +47,42 @@ import SidebarStudent from './SidebarStudent.vue'
 
 const userStore = useUserStore()
 
-// 2. 定义计算属性：根据身份返回对应的组件对象
+// 2. 定义计算属性：根据角色返回对应的组件对象
 const currentSidebar = computed(() => {
-  // ⚠️ 核心修改点：使用 userIdentity 进行判断
-  // 这里与你 Pinia Store 中的 getter 保持一致
-  if (userStore.userIdentity === 'teacher') {
+  // 假设后端返回的角色字段是 role
+  // 1 = 老师, 2 = 学生 (根据你的实际业务逻辑调整数字)
+  if (userStore.userInfo?.role === 1) {
     return SidebarTeacher
-  } else if (userStore.userIdentity === 'student') {
+  } else if (userStore.userInfo?.role === 2) {
     return SidebarStudent
   } else {
-    // 默认情况或未知身份，可以显示老师的，或者显示空
+    // 默认情况或未知角色，可以显示老师的，或者显示空，这里默认显示老师
     return SidebarTeacher
   }
 })
 </script>
 
 <style scoped>
-/* ... 你的样式代码保持不变 ... */
+/* 整体容器：Flex布局，占满全屏 */
 .layout-container {
   display: flex;
   width: 100%;
-  height: 100vh;
-  background-color: #f0f2f5;
-  overflow: hidden;
+  height: 100vh; /* 强制占满视口高度 */
+  background-color: #f0f2f5; /* 全局浅灰背景 */
+  overflow: hidden; /* 防止出现双重滚动条 */
 }
+
+/* --- 左侧侧边栏样式 --- */
 .sidebar {
   width: 220px;
-  background-color: #304156;
+  background-color: #304156; /* 经典的深色侧边栏颜色 */
   color: white;
   display: flex;
   flex-direction: column;
   box-shadow: 2px 0 6px rgba(0, 21, 41, 0.35);
   z-index: 10;
 }
+
 .logo-box {
   height: 60px;
   display: flex;
@@ -88,29 +92,37 @@ const currentSidebar = computed(() => {
   background-color: #2b3a4d;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 .logo-img {
   height: 32px;
   margin-right: 10px;
 }
+
 .logo-text {
   font-size: 18px;
   font-weight: bold;
   color: #fff;
   white-space: nowrap;
 }
+
 .menu-area {
   flex: 1;
   overflow-y: auto;
 }
+
+/* 隐藏侧边栏滚动条但保留功能 */
 .menu-area::-webkit-scrollbar {
   width: 0;
 }
+
+/* --- 右侧主体样式 --- */
 .main-wrapper {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
+
 .top-header {
   height: 60px;
   background-color: #fff;
@@ -119,19 +131,24 @@ const currentSidebar = computed(() => {
   display: flex;
   align-items: center;
 }
+
 .page-content {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
 }
+
+/* --- 路由切换动画 --- */
 .fade-transform-enter-active,
 .fade-transform-leave-active {
   transition: all 0.3s;
 }
+
 .fade-transform-enter-from {
   opacity: 0;
   transform: translateX(-10px);
 }
+
 .fade-transform-leave-to {
   opacity: 0;
   transform: translateX(10px);

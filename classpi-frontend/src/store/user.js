@@ -1,26 +1,18 @@
 import { defineStore } from 'pinia'
 
 export const useUserStore = defineStore('user', {
-    state: () => {
-      // 初始化时尝试从本地存储获取
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+  state: () => ({
+    // 初始化时尝试从本地存储获取，如果失败则默认为空
+    token: localStorage.getItem('token') || sessionStorage.getItem('token') || '',
+    userInfo: null
+  }),
 
-      // ⚠️ 【核心修复】：从本地存储读取 userInfo，并安全解析
-      let userInfo = null;
-      const storedInfo = localStorage.getItem('userInfo');
-      if (storedInfo) {
-        try {
-          userInfo = JSON.parse(storedInfo);
-        } catch (e) {
-          console.error('解析本地用户信息失败', e);
-        }
-      }
-
-      return {
-        token,
-        userInfo
-      };
-    },
+  getters: {
+    // 增加一个判断是否已登录的快捷属性
+    isLoggedIn: (state) => !!state.token,
+    // 增加一个获取角色的快捷属性
+    userRole: (state) => state.userInfo?.role || null
+  },
 
   actions: {
     /**
@@ -33,9 +25,19 @@ export const useUserStore = defineStore('user', {
       this.token = data.token;
       this.userInfo = data.userInfo;
 
-      // 将数据存入 localStorage
+      // 将数据存入 localStorage (长期保存)
+      // 如果你想区分“记住我”，可以在这里加判断，目前默认都存 localStorage
       localStorage.setItem('token', this.token);
       localStorage.setItem('userInfo', JSON.stringify(this.userInfo));
+    },
+
+    /**
+     * 单独更新用户信息（例如登录后获取详细信息）
+     * @param {Object} info
+     */
+    setUserInfo(info) {
+      this.userInfo = info;
+      localStorage.setItem('userInfo', JSON.stringify(info));
     },
 
     /**
@@ -53,7 +55,7 @@ export const useUserStore = defineStore('user', {
     },
 
     /**
-     * 初始化检查：在 App.vue 中调用，防止刷新页面后 userInfo 丢失
+     * 初始化检查（可选）：在 App.vue 中调用，防止刷新页面后 userInfo 丢失
      */
     initFromStorage() {
       const storedToken = localStorage.getItem('token');

@@ -4,9 +4,213 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>课堂派 - ClassPi</title>
+    <style>
+        /* 模型容器 */
+        #waifu {
+            position: fixed !important;
+            right: 20px !important;
+            bottom: 20px !important;
+            left: auto !important;
+            top: auto !important;
+            z-index: 9999 !important;
+            cursor: move !important;
+            pointer-events: auto !important;
+            transition: transform 0.3s ease;
+            /* 提升层级，不被页面元素遮挡 */
+            user-select: none;
+        }
+
+        /* 隐藏原生工具栏、提示框 */
+        #waifu-tool {
+            display: none !important;
+        }
+        #waifu-tips {
+            display: none !important;
+        }
+
+        /* 自定义气泡样式 */
+        .my-custom-tips {
+            position: fixed;
+            background: linear-gradient(145deg, #ffffff 0%, #f0faff 100%);
+            padding: 12px 18px;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 120, 215, 0.15), 0 2px 6px rgba(0,0,0,0.05);
+            font-size: 14px;
+            color: #34495e;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10000;
+            pointer-events: none;
+            max-width: 220px;
+            text-align: center;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            letter-spacing: 0.5px;
+        }
+        .my-custom-tips.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(-10px);
+        }
+        .my-custom-tips::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #f0faff;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.05));
+        }
+    </style>
 </head>
 <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+<div id="app"></div>
+
+<!-- Live2D 挂件核心脚本 -->
+<script src="https://cdn.jsdelivr.net/gh/stevenjoezhang/live2d-widget/autoload.js"></script>
+
+<script>
+    // ===================== 1. 身份配置（重点：对接登录接口）=====================
+    // 【这里根据登录账号赋值】
+    // 学生：userIdentify = "student"
+    // 老师：userIdentify = "teacher"
+    let userIdentify = "student"; // 默认学生，登录逻辑修改此处
+
+    // 分身份配置文案
+    const textConfig = {
+        student: [
+            "上课要坐端正哦！",
+            "别摸鱼啦，认真听讲~",
+            "记得按时完成作业！",
+            "笔记记好了吗？",
+            "别打瞌睡啦！",
+            "今天也要加油学习！",
+            "专注听讲，别走神~"
+        ],
+        teacher: [
+            "辛苦啦，认真备课哦！",
+            "同学们就拜托你啦~",
+            "保持好状态，开始上课吧",
+            "劳逸结合，注意休息",
+            "用心对待每一位学生"
+        ]
+    };
+
+    // 根据身份取出对应文案列表
+    const dialogList = textConfig[userIdentify] || textConfig.student;
+
+    // ===================== 2. 初始化气泡 =====================
+    const tipsBox = document.createElement('div');
+    tipsBox.className = 'my-custom-tips';
+    document.body.appendChild(tipsBox);
+
+    // 展示文字方法
+    function showText(text) {
+        const waifu = document.getElementById('waifu');
+        if (!waifu) return;
+        const rect = waifu.getBoundingClientRect();
+        let targetLeft = rect.left + (rect.width / 2) - 110;
+        let targetBottom = window.innerHeight - rect.top - 25;
+
+        // 边界防溢出
+        if (targetLeft < 10) targetLeft = 10;
+        if (targetLeft + 220 > window.innerWidth) targetLeft = window.innerWidth - 230;
+
+        tipsBox.style.left = `${targetLeft}px`;
+        tipsBox.style.bottom = `${targetBottom}px`;
+
+        tipsBox.classList.remove('show');
+        void tipsBox.offsetWidth;
+        tipsBox.innerText = text;
+        tipsBox.classList.add('show');
+
+        clearTimeout(tipsBox.timer);
+        tipsBox.timer = setTimeout(() => {
+            tipsBox.classList.remove('show');
+        }, 3500);
+    }
+
+    // ===================== 3. 【彻底修复拖拽】核心代码 =====================
+    function enableDrag() {
+        const waifu = document.getElementById('waifu');
+        if (!waifu) return;
+
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        // 使用捕获模式，绕过 Live2D 内部事件拦截
+        waifu.addEventListener('mousedown', function(e) {
+            e.stopPropagation(); // 阻止事件冒泡
+            isDragging = true;
+            offsetX = e.clientX - waifu.offsetLeft;
+            offsetY = e.clientY - waifu.offsetTop;
+            waifu.style.transition = 'none';
+        }, true); // true = 事件捕获
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            let x = e.clientX - offsetX;
+            let y = e.clientY - offsetY;
+
+            // 限制不超出可视区域
+            const maxX = window.innerWidth - waifu.offsetWidth;
+            const maxY = window.innerHeight - waifu.offsetHeight;
+            x = Math.max(0, Math.min(x, maxX));
+            y = Math.max(0, Math.min(y, maxY));
+
+            waifu.style.left = x + 'px';
+            waifu.style.top = y + 'px';
+            waifu.style.right = 'auto';
+            waifu.style.bottom = 'auto';
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                waifu.style.transition = 'transform 0.3s ease';
+            }
+        });
+    }
+
+    // ===================== 4. 页面初始化 =====================
+    window.addEventListener('load', () => {
+        // 延长等待，确保 Live2D 完全加载
+        setTimeout(() => {
+            const waifu = document.getElementById('waifu');
+            if (!waifu) return;
+
+            // 初始固定在右下角
+            waifu.style.right = '20px';
+            waifu.style.bottom = '20px';
+            waifu.style.left = 'auto';
+            waifu.style.top = 'auto';
+
+            // 启用拖拽
+            enableDrag();
+
+            // 点击弹出对应身份文案
+            waifu.onclick = () => {
+                let randomText = dialogList[Math.floor(Math.random() * dialogList.length)];
+                showText(randomText);
+            };
+
+            // 页面初始欢迎语
+            setTimeout(() => {
+                let welcome = userIdentify === "teacher" ? "老师您好，工作顺利！" : "同学你好，好好学习哦！";
+                showText(welcome);
+            }, 500);
+
+        }, 2800);
+    });
+</script>
+
+<script type="module" src="/src/main.js"></script>
 </body>
 </html>

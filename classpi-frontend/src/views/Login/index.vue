@@ -102,7 +102,6 @@ import { ref, computed, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { useUserStore } from '@/store/user'
-import { login } from '@/api/user' // ⚠️ 引入登录接口
 
 const router = useRouter();
 const activeTab = ref('account');
@@ -139,47 +138,29 @@ const sendSmsCode = () => {
 
 const userStore = useUserStore() // 实例化 store
 
-const handleLogin = async () => {
+const handleLogin = () => {
   if (activeTab.value === 'account') {
     if (!account.value || !password.value) return ElMessage.warning('请输入账号和密码');
 
-    try {
-      // 1. 调用后端接口，并等待返回结果
-      const res = await login({
-        username: account.value,
-        password: password.value
-      });
+    // --- 模拟登录成功逻辑开始 ---
+    ElMessage.success('登录成功');
 
-      // 2. 检查接口是否调用成功
-      if (res.code === 200) {
-        ElMessage.success('登录成功');
+   // 假设 res.data 是后端返回的数据
+   const loginData = {
+     token: res.data.token,
+     userInfo: res.data.userInfo // 必须包含 role 字段，例如 role: 1 (老师) 或 2 (学生)
+   };
 
-        // ⚠️ 【核心修改】：直接从 res.data 中获取 token 和 identity
-        // 后端返回的数据是扁平的，没有 userInfo 这一层！
-        const loginData = {
-          token: res.data.token,
-          userInfo: res.data // 把整个 data 当作 userInfo 存起来
-        };
+   // 1. 存入 Store
+   userStore.setUser(loginData);
 
-        // 3. 存入 Store
-        userStore.setUser(loginData);
-
-        // 4. 根据 identity 字段判断跳转路径
-        // 使用可选链 ?. 防止极端情况下报错
-        if (res.data?.identity === 'teacher') {
-          router.push('/main/dashboard');
-        } else {
-          router.push('/main/student-course');
-        }
-      } else {
-        // 后端返回了错误信息
-        ElMessage.error(res.msg || '登录失败');
-      }
-
-    } catch (error) {
-      console.error('登录请求出错:', error);
-      ElMessage.error('服务器连接失败，请稍后重试');
-    }
+   // 2. 根据角色跳转
+   if (loginData.userInfo.role === 1) { // 假设 1 是老师
+     router.push('/main/dashboard');
+   } else {
+     router.push('/main/student-course');
+   }
+    // --- 模拟登录成功逻辑结束 ---
 
   } else if (activeTab.value === 'sms') {
     if (!phone.value || !smsCode.value) return ElMessage.warning('请输入手机号和验证码');
