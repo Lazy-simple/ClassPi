@@ -212,10 +212,49 @@
     // ===================== 4. AI问答逻辑 =====================
     const aiInput = document.getElementById('aiQuestion');
     const sendBtn = document.getElementById('sendBtn');
+    let currentChatId = null;
 
     async function getAiAnswer(question) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        return `AI已收到：${question}\n我会尽力为你解答！`;
+        const token = localStorage.getItem('token');
+        const userInfoStr = localStorage.getItem('userInfo');
+        const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
+        
+        if (!token || !userInfo) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+            return "请先登录哦~";
+        }
+
+        const userId = userInfo.id;
+        const userRole = userInfo.role === 1 ? 'teacher' : 'student';
+
+        try {
+            const response = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token
+                },
+                body: JSON.stringify({
+                    userId: userId,
+                    userRole: userRole,
+                    content: question,
+                    chatId: currentChatId
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.code === 200 && data.data) {
+                currentChatId = data.data.chatId;
+                return data.data.response;
+            } else {
+                throw new Error(data.message || '请求失败');
+            }
+        } catch (err) {
+            console.error('AI请求失败:', err);
+            await new Promise(resolve => setTimeout(resolve, 800));
+            return "AI暂时无法回答，请稍后再试~";
+        }
     }
 
     async function handleSend() {

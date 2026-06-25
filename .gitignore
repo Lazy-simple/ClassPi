@@ -46,6 +46,7 @@ spring-shell.log
 .env
 .env.local
 .env.*.local
+classpi-backend/.env
 
 # 数据库文件
 *.sql
