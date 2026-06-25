@@ -1,35 +1,5 @@
-<<<<<<< HEAD
-# 依赖包
-node_modules/
-# Vite 缓存
-node_modules/.vite/
-# 打包产物
-dist/
-# 环境变量
-.env
-.env.local
-# 编辑器、系统文件
-.idea/
-.vscode/
-*.log
-.DS_Store
-=======
-# Compiled class files
+# Java后端编译文件
 *.class
-
-# Log files
-*.log
-
-# Package files
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# Maven
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -41,32 +11,42 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
-# IDE
+# 压缩包、jar包
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# IDE编辑器配置
 .idea/
 .vscode/
 *.iml
 *.ipr
 *.iws
 
-# Node.js
+# 前端Node依赖&打包（和你node_modules同级，路径完全匹配）
 node_modules/
 dist/
 build/
+node_modules/.vite/
 *.local
 
-# OS
+# 系统缓存
 .DS_Store
 Thumbs.db
 
-# Database
-*.sql
-*.db
+# 日志文件
+*.log
+spring-shell.log
 
-# Environment variables
+# 环境变量
 .env
 .env.local
 .env.*.local
 
-# Spring Boot
-spring-shell.log
->>>>>>> 0ef242d55d117043086f247429471accbf085ff9
+# 数据库文件
+*.sql
+*.db
