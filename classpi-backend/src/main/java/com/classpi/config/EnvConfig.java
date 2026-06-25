@@ -1,8 +1,8 @@
-package com.classpi;
+package com.classpi.config;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.ComponentScan;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
+import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -10,15 +10,16 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
-@SpringBootApplication
-public class ClassPiApplication {
+@Slf4j
+@Component
+public class EnvConfig implements ApplicationListener<ApplicationEnvironmentPreparedEvent> {
 
-    public static void main(String[] args) {
+    @Override
+    public void onApplicationEvent(ApplicationEnvironmentPreparedEvent event) {
         loadEnv();
-        SpringApplication.run(ClassPiApplication.class, args);
     }
 
-    private static void loadEnv() {
+    public void loadEnv() {
         File envFile = new File(".env");
         if (!envFile.exists()) {
             envFile = new File("classpi-backend/.env");
@@ -39,12 +40,12 @@ public class ClassPiApplication {
                             String key = line.substring(0, equalsIndex).trim();
                             String value = line.substring(equalsIndex + 1).trim();
                             System.setProperty(key, value);
-                            System.out.println("Loaded environment variable: " + key);
+                            log.info("Loaded environment variable: {}", key);
                         }
                     }
                 }
             } catch (IOException e) {
-                System.err.println("Failed to load .env file: " + e.getMessage());
+                log.warn("Failed to load .env file: {}", e.getMessage());
             }
         }
     }

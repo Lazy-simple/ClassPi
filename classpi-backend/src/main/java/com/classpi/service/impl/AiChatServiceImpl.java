@@ -163,7 +163,8 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String callDeepSeek(String userContent, List<AiChatResponseDTO.MessageItem> context) throws Exception {
-        if ("EMPTY".equals(deepseekApiKey)) {
+        String apiKey = System.getProperty("DEEPSEEK_API_KEY", deepseekApiKey);
+        if ("EMPTY".equals(apiKey)) {
             return generateMockResponse(userContent);
         }
 
@@ -201,7 +202,7 @@ public class AiChatServiceImpl implements AiChatService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + deepseekApiKey);
+        headers.set("Authorization", "Bearer " + apiKey);
 
         HttpEntity<Object> entity = new HttpEntity<>(requestBody, headers);
 
