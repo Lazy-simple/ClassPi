@@ -19,7 +19,18 @@ public class StudentHomeworkController {
      * POST /api/student/homework/submit
      */
     @PostMapping("/submit")
-    public Result submit(@RequestBody HomeworkSubmitDTO dto, @RequestHeader("userId") Long studentId) {
+    public Result submit(@RequestBody HomeworkSubmitDTO dto, @RequestHeader(value = "userId", required = false) Long studentId) {
+        // ========== 添加日志 ==========
+        System.out.println("========== StudentHomeworkController.submit 被调用 ==========");
+        System.out.println("dto: " + dto);
+        System.out.println("studentId (从Header获取): " + studentId);
+        System.out.println("=====================================");
+
+        if (studentId == null) {
+            System.out.println("⚠️ studentId 为 null！请检查请求头是否包含 userId");
+            return Result.error("用户ID不能为空，请重新登录");
+        }
+
         return studentHomeworkService.submit(dto, studentId);
     }
 
@@ -28,7 +39,14 @@ public class StudentHomeworkController {
      * GET /api/student/homework/status/{hwId}
      */
     @GetMapping("/status/{hwId}")
-    public Result<StudentHomework> getStatus(@PathVariable Long hwId, @RequestHeader("userId") Long studentId) {
+    public Result<StudentHomework> getStatus(@PathVariable Long hwId, @RequestHeader(value = "userId", required = false) Long studentId) {
+        System.out.println("========== getStatus 被调用 ==========");
+        System.out.println("hwId: " + hwId);
+        System.out.println("studentId: " + studentId);
+
+        if (studentId == null) {
+            return Result.error("用户ID不能为空");
+        }
         StudentHomework record = studentHomeworkService.getByHwAndStu(hwId, studentId);
         return Result.success("查询成功", record);
     }

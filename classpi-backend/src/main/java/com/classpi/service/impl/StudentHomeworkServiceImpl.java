@@ -19,26 +19,36 @@ public class StudentHomeworkServiceImpl extends ServiceImpl<StudentHomeworkMappe
 
     @Override
     public Result submit(HomeworkSubmitDTO dto, Long studentId) {
-        // 判断是否重复提交
-        LambdaQueryWrapper<StudentHomework> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(StudentHomework::getHomeworkId, dto.getHomeworkId())
-                .eq(StudentHomework::getStudentId, studentId);
-        StudentHomework exist = this.getOne(wrapper);
-        if (exist != null) {
-            return Result.error("你已提交该作业，不可重复提交");
-        }
+        // 添加这行日志
+        System.out.println("========== submit 方法被调用 ==========");
+        System.out.println("dto: " + dto);
+        System.out.println("studentId: " + studentId);
 
-        StudentHomework submit = new StudentHomework();
-        submit.setHomeworkId(dto.getHomeworkId());
-        submit.setStudentId(studentId);
-        submit.setSubmitContent(dto.getSubmitContent());
-        submit.setFileUrl(dto.getFileUrl());
-        submit.setFileName(dto.getFileName());
-        submit.setFileType(dto.getFileType());
-        submit.setSubmitTime(LocalDateTime.now());
-        submit.setCorrected(0);
-        boolean save = this.save(submit);
-        return save ? Result.success("提交成功") : Result.error("提交失败");
+        try {
+            // 判断是否重复提交
+            LambdaQueryWrapper<StudentHomework> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(StudentHomework::getHomeworkId, dto.getHomeworkId())
+                    .eq(StudentHomework::getStudentId, studentId);
+            StudentHomework exist = this.getOne(wrapper);
+            if (exist != null) {
+                return Result.error("你已提交该作业，不可重复提交");
+            }
+
+            StudentHomework submit = new StudentHomework();
+            submit.setHomeworkId(dto.getHomeworkId());
+            submit.setStudentId(studentId);
+            submit.setSubmitContent(dto.getSubmitContent());
+            submit.setFileUrl(dto.getFileUrl());
+            submit.setFileName(dto.getFileName());
+            submit.setFileType(dto.getFileType());
+            submit.setSubmitTime(LocalDateTime.now());
+            submit.setCorrected(0);
+            boolean save = this.save(submit);
+            return save ? Result.success("提交成功") : Result.error("提交失败");
+        } catch (Exception e) {
+            e.printStackTrace();  // 打印完整错误
+            return Result.error("提交失败：" + e.getMessage());
+        }
     }
 
     @Override

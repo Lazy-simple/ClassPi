@@ -1,7 +1,7 @@
 <template>
   <div class="homework-submit-page">
     <div class="submit-container">
-      <!-- 左侧/顶部：作业信息概览 -->
+      <!-- 作业信息卡片 -->
       <div class="assignment-info-card">
         <div class="info-header">
           <el-icon size="24" color="#4f46e5"><DocumentChecked /></el-icon>
@@ -23,7 +23,7 @@
         </div>
       </div>
 
-      <!-- 右侧/底部：提交表单 -->
+      <!-- 提交表单 -->
       <el-card shadow="hover" class="form-card">
         <template #header>
           <div class="card-header">
@@ -33,39 +33,41 @@
         </template>
 
         <el-form :model="form" label-position="top" size="large">
-          <!-- 附件上传区域 -->
-          <el-form-item label="上传附件">
+          <!-- 附件上传 -->
+          <el-form-item label="上传附件" required>
             <div class="upload-area">
-              <UploadFile @change="fileChange" />
-              <p class="upload-tip">支持 PDF, Word, Zip 格式，文件大小不超过 50MB</p>
+              <UploadFile @change="fileChange" ref="uploadComponentRef" />
             </div>
           </el-form-item>
 
-          <!-- 备注输入 -->
+          <!-- 备注 -->
           <el-form-item label="留言/备注 (选填)">
             <el-input
-              v-model="form.remark"
-              type="textarea"
-              :rows="4"
-              placeholder="如果有特殊情况需要说明，请在这里留言..."
-              maxlength="200"
-              show-word-limit
+                v-model="form.remark"
+                type="textarea"
+                :rows="4"
+                placeholder="如果有特殊情况需要说明，请在这里留言..."
+                maxlength="200"
+                show-word-limit
             />
           </el-form-item>
 
           <!-- 提交按钮 -->
           <el-form-item>
             <el-button
-              type="primary"
-              size="large"
-              :loading="submitting"
-              :disabled="files.length === 0"
-              @click="submitHomeworkHandler"
-              class="submit-btn"
+                type="primary"
+                size="large"
+                :loading="submitting"
+                :disabled="!hasFile"
+                @click="submitHomeworkHandler"
+                class="submit-btn"
             >
               <el-icon style="margin-right: 5px;"><UploadFilled /></el-icon>
               {{ isSubmitted ? '重新提交' : '确认提交' }}
             </el-button>
+            <div v-if="!hasFile" class="tip-text">
+              <el-icon><Warning /></el-icon> 请先上传作业文件
+            </div>
           </el-form-item>
         </el-form>
       </el-card>
@@ -74,69 +76,108 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import { submitHomework, getAssignmentDetail } from '@/api/homework'; // 假设你有获取详情的接口
-import UploadFile from '@/components/UploadFile.vue';
-import { ElMessage } from 'element-plus';
-import { DocumentChecked, UploadFilled } from '@element-plus/icons-vue';
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { submitHomework, getAssignmentDetail } from '@/api/homework'
+import UploadFile from '@/components/UploadFile.vue'
+import { ElMessage } from 'element-plus'
+import { DocumentChecked, UploadFilled, Warning } from '@element-plus/icons-vue'
 
-const route = useRoute();
-const submitting = ref(false);
-const isSubmitted = ref(false); // 模拟是否已提交状态
-const files = ref([]);
+const route = useRoute()
+const submitting = ref(false)
+const isSubmitted = ref(false)
+const files = ref([])
+const uploadComponentRef = ref(null)
 
-// 作业数据（实际开发中应从路由参数或API获取）
+// 作业数据
 const assignmentData = ref({
   id: route.query.id || 1,
-  courseName: 'Web前端开发技术',
-  title: '第三次平时作业：Vue组件化开发实践',
-  deadline: '2023-12-31 23:59'
-});
+  courseName: route.query.courseName || 'Web前端开发技术',
+  title: route.query.title || '第三次平时作业：Vue组件化开发实践',
+  deadline: route.query.deadline || '2026-07-01 23:59'
+})
 
 const form = ref({
   remark: '',
-  assignmentId: assignmentData.value.id,
-  fileUrl: '' // 用于存储上传后的文件地址
-});
+  homeworkId: Number(route.query.id) || 1,
+  studentId: localStorage.getItem('userId') || '1',
+  studentName: localStorage.getItem('userName') || '学生'
+})
+
+// 判断是否有文件
+const hasFile = computed(() => {
+  return files.value && files.value.length > 0
+})
 
 // 监听文件变化
-const fileChange = (list) => {
-  files.value = list;
-  if (list.length > 0) {
-    form.value.fileUrl = list[0].url; // 假设你的 UploadFile 组件返回的格式包含 url
+const fileChange = (fileList) => {
+  console.log('文件变化:', fileList)
+  files.value = fileList || []
+
+  if (files.value.length > 0) {
+    const file = files.value[0]
+    form.value.fileName = file.name
+    form.value.fileSize = file.size
+    // 如果是自定义上传，保存文件对象
+    if (file.raw) {
+      form.value.file = file.raw
+    }
+  } else {
+    form.value.fileName = ''
+    form.value.fileSize = 0
+    form.value.file = null
   }
-};
+}
 
 // 提交作业
+// 提交作业
 const submitHomeworkHandler = async () => {
-  if (files.value.length === 0) {
-    ElMessage.warning('请先上传作业附件');
-    return;
+  if (!hasFile.value) {
+    ElMessage.warning('请先上传作业附件')
+    return
   }
 
-  submitting.value = true;
+  submitting.value = true
   try {
-    const res = await submitHomework(form.value);
+    const file = files.value[0]
+
+    const submitData = {
+      homeworkId: form.value.homeworkId,
+      studentId: form.value.studentId,
+      studentName: form.value.studentName,
+      fileName: file?.name || '',
+      fileSize: file?.size || 0,
+      submitContent: form.value.remark || ''
+    }
+
+    console.log('提交数据:', submitData)
+
+    const res = await submitHomework(submitData)
     if (res.code === 200) {
-      ElMessage.success('作业提交成功！');
-      isSubmitted.value = true;
+      ElMessage.success('作业提交成功！')
+      isSubmitted.value = true
+
+      // 简单处理：清空文件列表和重置状态
+      files.value = []
+      form.value.remark = ''
+
+      // 重新加载页面数据
+      // 或者直接刷新页面
+      // window.location.reload()
     } else {
-      ElMessage.error(res.msg || '提交失败');
+      ElMessage.error(res.msg || '提交失败，请重试')
     }
   } catch (error) {
-    ElMessage.error('网络异常，请稍后重试');
+    console.error('提交失败:', error)
+    if (error.response?.data?.message?.includes('重复提交')) {
+      ElMessage.warning('您已提交过该作业')
+    } else {
+      ElMessage.error('网络异常，请稍后重试')
+    }
   } finally {
-    submitting.value = false;
+    submitting.value = false
   }
-};
-
-// 页面加载时获取作业详情
-onMounted(async () => {
-  // 实际开发中取消注释
-  // const res = await getAssignmentDetail(assignmentData.value.id);
-  // if (res.code === 200) assignmentData.value = res.data;
-});
+}
 </script>
 
 <style scoped>
@@ -162,39 +203,47 @@ onMounted(async () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   border-left: 5px solid #4f46e5;
 }
+
 .info-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 20px;
 }
+
 .info-header h3 {
   margin: 0;
   font-size: 18px;
   color: #303133;
 }
+
 .info-body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 15px;
 }
+
 .info-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+
 .info-item .label {
   font-size: 13px;
   color: #909399;
 }
+
 .info-item .value {
   font-size: 15px;
   color: #303133;
   font-weight: 500;
 }
+
 .info-item .highlight {
   color: #4f46e5;
 }
+
 .info-item .deadline {
   color: #e6a23c;
 }
@@ -205,6 +254,7 @@ onMounted(async () => {
   border: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -217,11 +267,6 @@ onMounted(async () => {
 .upload-area {
   width: 100%;
 }
-.upload-tip {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #909399;
-}
 
 .submit-btn {
   width: 100%;
@@ -232,7 +277,17 @@ onMounted(async () => {
   border: none;
   margin-top: 10px;
 }
+
 .submit-btn:hover {
   opacity: 0.9;
 }
-</style
+
+.tip-text {
+  color: #e6a23c;
+  font-size: 13px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+</style>

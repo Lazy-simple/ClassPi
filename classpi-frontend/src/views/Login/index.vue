@@ -190,6 +190,7 @@ const handleLogin = async () => {
       // 存储数据
       userStore.setUser({ token, userInfo });
       localStorage.setItem('token', token);
+      localStorage.setItem('userId', userInfo.id || userInfo.userId)
       localStorage.setItem('userInfo', JSON.stringify(userInfo));
 
       // 跳转
