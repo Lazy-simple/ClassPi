@@ -218,7 +218,7 @@
         const token = localStorage.getItem('token');
         const userInfoStr = localStorage.getItem('userInfo');
         const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
-        
+
         if (!token || !userInfo) {
             await new Promise(resolve => setTimeout(resolve, 800));
             return "请先登录哦~";
@@ -243,7 +243,7 @@
             });
 
             const data = await response.json();
-            
+
             if (data.code === 200 && data.data) {
                 currentChatId = data.data.chatId;
                 return data.data.response;

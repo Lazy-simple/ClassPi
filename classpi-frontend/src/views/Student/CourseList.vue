@@ -28,13 +28,15 @@
       </div>
 
       <div v-else class="course-grid">
-        <div class="course-card selected-card" v-for="sc in selectedCourses" :key="sc.id">
+        <!-- 注意：key 使用 sc.id 或 sc.courseId，取决于后端返回的主键 -->
+        <div class="course-card selected-card" v-for="sc in selectedCourses" :key="sc.id || sc.courseId">
           <div class="card-tag tag-selected">已选</div>
           <div class="card-content">
-            <h4 class="course-name">{{ sc.courseName }}</h4>
+            <!-- 兼容处理：如果后端返回 name，就用 name；如果有 courseName 就用 courseName -->
+            <h4 class="course-name">{{ sc.courseName || sc.name }}</h4>
             <p class="course-no">编号：{{ sc.courseNo }}</p>
             <div class="info-row">
-              <el-icon><Collection /></el-icon> <span>{{ sc.credit }} 学分</span>
+              <el-icon><Collection /></el-icon> <span>{{ sc.credit || 0 }} 学分</span>
             </div>
             <div class="info-row">
               <el-icon><Clock /></el-icon> <span>{{ sc.schedule || '待定' }}</span>
@@ -60,19 +62,22 @@
             <h4 class="course-name">{{ course.name }}</h4>
             <p class="course-no">编号：{{ course.courseNo }}</p>
             <div class="info-row">
-              <el-icon><User /></el-icon> <span>教师：{{ course.teacherName }}</span>
+              <el-icon><User /></el-icon> <span>教师：{{ course.teacherName || '未知' }}</span>
             </div>
             <div class="info-row">
-              <el-icon><Clock /></el-icon> <span>{{ course.schedule }}</span>
+              <el-icon><Clock /></el-icon> <span>{{ course.schedule || '待定' }}</span>
             </div>
             <div class="capacity-info">
               <span>余量：</span>
+              <!-- 防止除以0错误 -->
               <el-progress
+                v-if="course.capacity > 0"
                 :percentage="(course.enrolledCount / course.capacity) * 100"
-                :format="() => `${course.enrolledCount}/${course.capacity}`"
+                :format="() => `${course.enrolledCount || 0}/${course.capacity}`"
                 :stroke-width="8"
                 :status="course.enrolledCount >= course.capacity ? 'exception' : ''"
               />
+              <span v-else>未设置容量</span>
             </div>
           </div>
           <div class="card-action">
@@ -109,7 +114,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '@/store/user';
-import { getCourseList, getStudentCourses, selectCourse, dropCourse } from '@/api/course'; // 确保你的API路径正确
+import { getCourseList, getStudentCourses, selectCourse, dropCourse } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search, Clock, User, Collection, Check } from '@element-plus/icons-vue';
 
@@ -125,8 +130,8 @@ const availableCourses = computed(() => {
   if (searchKeyword.value) {
     const kw = searchKeyword.value.toLowerCase();
     courses = courses.filter(c =>
-      c.courseNo.toLowerCase().includes(kw) ||
-      c.name.toLowerCase().includes(kw)
+      (c.courseNo && c.courseNo.toLowerCase().includes(kw)) ||
+      (c.name && c.name.toLowerCase().includes(kw))
     );
   }
   return courses;
@@ -136,18 +141,27 @@ const isSelected = (cid) => selectedCourses.value.some(sc => sc.courseId === cid
 
 // 加载数据
 const loadCourses = async () => {
+  // 安全检查：确保用户信息已加载
+  if (!userStore.userInfo || !userStore.userInfo.id) {
+    console.warn("用户信息尚未加载，跳过课程请求");
+    return;
+  }
+
   loading.value = true;
   try {
+    // 并行请求：获取所有课程 和 当前学生的已选课程
     const [allRes, selRes] = await Promise.all([
       getCourseList(),
-      getStudentCourses(userStore.userInfo.id)
+      getStudentCourses(userStore.userInfo.id) // 此时 API 会自动拼接 ID 到 URL
     ]);
 
-    if (allRes.code === 200) allCourses.value = allRes.data;
-    if (selRes.code === 200) selectedCourses.value = selRes.data;
+    // 假设后端返回格式为 { code: 200, data: [...] }
+    if (allRes.code === 200) allCourses.value = allRes.data || [];
+    if (selRes.code === 200) selectedCourses.value = selRes.data || [];
+
   } catch (error) {
-    console.error(error);
-    ElMessage.error('加载课程数据失败');
+    console.error("加载课程失败:", error);
+    ElMessage.error('加载课程数据失败，请检查网络或联系管理员');
   } finally {
     loading.value = false;
   }
@@ -158,7 +172,7 @@ const handleSelect = async (course) => {
   try {
     const res = await selectCourse({
       studentId: userStore.userInfo.id,
-      studentName: userStore.userInfo.username,
+      studentName: userStore.userInfo.username || userStore.userInfo.name, // 兼容不同字段名
       courseId: course.id,
       courseNo: course.courseNo,
       courseName: course.name
@@ -171,6 +185,7 @@ const handleSelect = async (course) => {
       ElMessage.error(res.msg || '选课失败');
     }
   } catch (error) {
+    console.error(error);
     ElMessage.error('网络请求异常');
   }
 };
@@ -179,14 +194,14 @@ const handleSelect = async (course) => {
 const handleDrop = async (sc) => {
   try {
     await ElMessageBox.confirm(
-      `确定要退选《${sc.courseName}》吗？`,
+      `确定要退选《${sc.courseName || sc.name}》吗？`,
       '退选确认',
       { confirmButtonText: '确定退选', cancelButtonText: '取消', type: 'warning' }
     );
 
     const res = await dropCourse({
       studentId: userStore.userInfo.id,
-      courseId: sc.courseId
+      courseId: sc.courseId || sc.id // 兼容 ID 字段
     });
 
     if (res.code === 200) {
@@ -204,145 +219,27 @@ onMounted(loadCourses);
 </script>
 
 <style scoped>
-/* 容器与背景 */
-.course-select-page {
-  padding: 20px 40px;
-  background-color: #f5f7fa; /* 浅灰底色，突出白色卡片 */
-  min-height: 100vh;
-}
-
-/* 头部样式 */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-}
-.page-title {
-  font-size: 24px;
-  color: #303133;
-  font-weight: 600;
-}
-
-/* 区域标题 */
-.section-block {
-  margin-bottom: 40px;
-}
-.section-title {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-}
-.title-dot {
-  width: 4px;
-  height: 18px;
-  background-color: #909399;
-  border-radius: 2px;
-  margin-right: 10px;
-}
-.title-dot.primary {
-  background: linear-gradient(135deg, #4f46e5, #818cf8); /* 呼应登录页渐变色 */
-}
-.section-title h3 {
-  margin: 0;
-  font-size: 18px;
-  color: #303133;
-}
-
-/* 网格布局 */
-.course-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-}
-
-/* 卡片样式 */
-.course-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  position: relative;
-  border: 1px solid transparent;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.course-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.15); /* 悬停时出现淡紫色阴影 */
-}
-
-/* 已选卡片特殊样式 */
-.selected-card {
-  border-color: #e0eaff;
-  background: linear-gradient(to bottom right, #ffffff, #f9fbff);
-}
-.tag-selected {
-  position: absolute;
-  top: -10px;
-  right: 20px;
-  background: #4f46e5;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: bold;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.4);
-}
-
-/* 卡片内容细节 */
-.course-name {
-  margin: 0 0 10px 0;
-  font-size: 18px;
-  color: #303133;
-  line-height: 1.4;
-}
-.course-no {
-  color: #909399;
-  font-size: 13px;
-  margin-bottom: 15px;
-}
-.info-row {
-  display: flex;
-  align-items: center;
-  color: #606266;
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-.info-row .el-icon {
-  margin-right: 6px;
-  color: #4f46e5; /* 图标使用主色调 */
-}
-
-/* 进度条样式 */
-.capacity-info {
-  margin-top: 15px;
-  font-size: 12px;
-  color: #606266;
-}
-.capacity-info span {
-  margin-right: 5px;
-}
-
-/* 按钮区域 */
-.card-action {
-  margin-top: 20px;
-  border-top: 1px solid #ebeef5;
-  padding-top: 15px;
-  text-align: right;
-}
-.card-action .el-button {
-  width: 100%;
-  border-radius: 6px;
-}
-
-.empty-tip {
-  background: #fff;
-  padding: 40px;
-  border-radius: 12px;
-  text-align: center;
-}
+/* 保持你原有的样式不变，这里省略以节省篇幅 */
+.course-select-page { padding: 20px 40px; background-color: #f5f7fa; min-height: 100vh; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.page-title { font-size: 24px; color: #303133; font-weight: 600; }
+.section-block { margin-bottom: 40px; }
+.section-title { display: flex; align-items: center; margin-bottom: 20px; }
+.title-dot { width: 4px; height: 18px; background-color: #909399; border-radius: 2px; margin-right: 10px; }
+.title-dot.primary { background: linear-gradient(135deg, #4f46e5, #818cf8); }
+.section-title h3 { margin: 0; font-size: 18px; color: #303133; }
+.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+.course-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; position: relative; border: 1px solid transparent; display: flex; flex-direction: column; justify-content: space-between; }
+.course-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(79, 70, 229, 0.15); }
+.selected-card { border-color: #e0eaff; background: linear-gradient(to bottom right, #ffffff, #f9fbff); }
+.tag-selected { position: absolute; top: -10px; right: 20px; background: #4f46e5; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.4); }
+.course-name { margin: 0 0 10px 0; font-size: 18px; color: #303133; line-height: 1.4; }
+.course-no { color: #909399; font-size: 13px; margin-bottom: 15px; }
+.info-row { display: flex; align-items: center; color: #606266; font-size: 14px; margin-bottom: 8px; }
+.info-row .el-icon { margin-right: 6px; color: #4f46e5; }
+.capacity-info { margin-top: 15px; font-size: 12px; color: #606266; }
+.capacity-info span { margin-right: 5px; }
+.card-action { margin-top: 20px; border-top: 1px solid #ebeef5; padding-top: 15px; text-align: right; }
+.card-action .el-button { width: 100%; border-radius: 6px; }
+.empty-tip { background: #fff; padding: 40px; border-radius: 12px; text-align: center; }
 </style>

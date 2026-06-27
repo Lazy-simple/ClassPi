@@ -1,41 +1,52 @@
 import request from '@/utils/request'
 
-// 获取全部课程
+// 获取全部课程（可选课程池）
 export function getCourseList() {
   return request({ url: '/course/list', method: 'get' })
 }
 
-// 获取教师课程
-export function getTeacherCourses(teacherId) {
-  return request({ url: '/course/teacher', method: 'get', params: { teacherId } })
-}
-
-// 获取学生已选课程
+// 【核心修复】获取学生已选课程
+// 后端定义：@GetMapping("/student/{studentId}")
+// 必须使用模板字符串将 ID 拼接到 URL 路径中，而不是作为 params 传递
 export function getStudentCourses(studentId) {
-  return request({ url: '/course/student', method: 'get', params: { studentId } })
+  return request({
+    url: `/course/student/${studentId}`,
+    method: 'get'
+  })
 }
 
 // 创建课程
 export function createCourse(data) {
-  return request({ url: '/course/add', method: 'post', data })
+  return request({ url: '/course/create', method: 'post', data }) // 注意：Controller里是 /create
 }
 
 // 修改课程
 export function updateCourse(id, data) {
-  return request({ url: `/course/update/${id}`, method: 'put', data })
+  return request({ url: `/course/${id}`, method: 'put', data }) // 注意：Controller里是 /{id}
 }
 
 // 删除课程
 export function deleteCourse(id) {
-  return request({ url: `/course/delete/${id}`, method: 'delete' })
+  return request({ url: `/course/${id}`, method: 'delete' })
 }
 
-// 学生选课
+// 【核心修复】学生选课
+// 后端定义：@PostMapping("/select") 且使用 @RequestParam
+// 这里建议使用 params 传参，或者在 body 中传 JSON (取决于后端具体实现，通常 @RequestParam 对应 params)
 export function selectCourse(data) {
-  return request({ url: '/student/course/add', method: 'post', data })
+  return request({
+    url: '/course/select',
+    method: 'post',
+    params: data // 将 studentId, courseId 等作为查询参数发送
+  })
 }
 
-// 学生退课
+// 【核心修复】学生退课
+// 后端定义：@PostMapping("/drop")
 export function dropCourse(data) {
-  return request({ url: '/student/course/del', method: 'post', data })
+  return request({
+    url: '/course/drop',
+    method: 'post',
+    params: data
+  })
 }
