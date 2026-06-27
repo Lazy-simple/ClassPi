@@ -105,6 +105,7 @@ public class CourseServiceImpl implements CourseService {
         QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("teacher_id", teacherId);
         List<Course> courses = courseMapper.selectList(queryWrapper);
+
         return Result.success("获取教师课程列表成功", courses);
     }
 
@@ -180,6 +181,11 @@ public class CourseServiceImpl implements CourseService {
         queryWrapper.eq("student_id", studentId);
         queryWrapper.eq("status", 1);
         List<StudentCourse> courses = studentCourseMapper.selectList(queryWrapper);
+
+        // 优化：无数据时返回成功，前端根据空列表处理，而非错误
+        if (courses.isEmpty()) {
+            return Result.success("该学生暂无已选课程", courses); // 成功+空列表
+        }
         return Result.success("获取学生课程列表成功", courses);
     }
 

@@ -18,17 +18,17 @@ public class Resource {
 
     private String courseNo;
 
-    private String name;
+    private String name;          // 文件/链接名称
 
-    private String type;
+    private String type;          // 资源类型：folder/file/link
 
-    private String path;
+    private String path;          // 文件存储路径
 
-    private String parentId;
+    private String parentId;      // 父文件夹ID
 
-    private String folderName;
+    private String folderName;    // 文件夹名称（当 isFolder=1 时使用）
 
-    private Integer isFolder;
+    private Integer isFolder;     // 是否为文件夹：1-是，0-否
 
     private String uploaderId;
 

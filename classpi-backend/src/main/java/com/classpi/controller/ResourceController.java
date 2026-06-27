@@ -9,13 +9,23 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
+
 @RestController
 @RequestMapping("/resource")
-@CrossOrigin
+@CrossOrigin(origins = "*")
 public class ResourceController {
 
     @Autowired
     private ResourceService resourceService;
+
+    // ========== 添加这个测试接口 ==========
+    @GetMapping("/ping")
+    public String ping() {
+        System.out.println("========== ping 接口被调用 ==========");
+        return "pong";
+    }
+    // =====================================
 
     @PostMapping("/folder")
     public Result createFolder(@RequestParam Integer courseId,
@@ -67,11 +77,25 @@ public class ResourceController {
         return resourceService.downloadResource(id);
     }
 
+
     @GetMapping("/course/{courseId}")
     public Result getCourseResources(@PathVariable Integer courseId,
                                      @RequestParam(defaultValue = "1") Long page,
                                      @RequestParam(defaultValue = "10") Long pageSize) {
-        return resourceService.getCourseResources(courseId, page, pageSize);
+        // 添加这行，看方法是否被调用
+        System.out.println("========== 1. Controller.getCourseResources 被调用 ==========");
+        System.out.println("courseId: " + courseId + ", page: " + page + ", pageSize: " + pageSize);
+
+        try {
+            System.out.println("========== 2. 准备调用 Service ==========");
+            Result result = resourceService.getCourseResources(courseId, page, pageSize);
+            System.out.println("========== 3. Service 返回结果 ==========");
+            return result;
+        } catch (Exception e) {
+            System.err.println("========== 4. Controller 捕获异常 ==========");
+            e.printStackTrace();
+            return Result.error("获取资源失败：" + e.getMessage());
+        }
     }
 
     @GetMapping("/folder/{courseId}")

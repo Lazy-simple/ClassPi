@@ -9,11 +9,18 @@ const service = axios.create({
 
 // 请求拦截器携带token
 service.interceptors.request.use(config => {
-  const userStore = useUserStore()
-  if (userStore.token) {
-    config.headers.Authorization = userStore.token
-  }
-  return config
+    console.log('========== 请求拦截器 ==========')
+    console.log('完整请求URL:', config.baseURL + config.url)
+    console.log('请求方法:', config.method)
+    console.log('请求参数:', config.params)
+    console.log('请求数据:', config.data)
+    console.log('请求头:', config.headers)
+
+    const userStore = useUserStore()
+    if (userStore.token) {
+        config.headers.Authorization = userStore.token
+    }
+    return config
 }, err => Promise.reject(err))
 
 // 响应拦截器统一处理返回格式
