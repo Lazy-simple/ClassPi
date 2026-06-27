@@ -49,15 +49,14 @@ const userStore = useUserStore()
 
 // 2. 定义计算属性：根据角色返回对应的组件对象
 const currentSidebar = computed(() => {
-  // 假设后端返回的角色字段是 role
-  // 1 = 老师, 2 = 学生 (根据你的实际业务逻辑调整数字)
-  if (userStore.userInfo?.role === 1) {
+  const identity = userStore.userInfo?.identity;
+  if (identity === 'teacher') {
     return SidebarTeacher
-  } else if (userStore.userInfo?.role === 2) {
+  } else if (identity === 'student') {
     return SidebarStudent
   } else {
-    // 默认情况或未知角色，可以显示老师的，或者显示空，这里默认显示老师
-    return SidebarTeacher
+    // 未知身份默认空/登录页
+    return null
   }
 })
 </script>

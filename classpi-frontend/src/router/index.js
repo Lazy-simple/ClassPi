@@ -53,10 +53,13 @@ const router = createRouter({
 // 修复后的完整路由守卫（合并重复逻辑、补全缺失的变量/逻辑）
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem("token");
-  const userStore = useUserStore(); // 获取用户仓库
-  const identity = userStore.identity; // 从仓库读取身份（teacher/student）
+  const userStore = useUserStore();
+  // 先加载本地存储的用户信息
+  userStore.initFromStorage();
+  // 正确取身份：从userInfo拿identity，不是直接.userStore.identity
+  const identity = userStore.userInfo?.identity;
 
-  // 1. 未登录校验：无token则强制跳登录页
+  // 1. 无token跳登录
   if (!token) {
     if (to.path === "/login") {
       next();
@@ -64,10 +67,10 @@ router.beforeEach((to, from, next) => {
       ElMessage.warning('请先登录');
       next("/login");
     }
-    return; // 终止后续逻辑
+    return;
   }
 
-  // 2. 已登录：禁止访问登录页，跳对应身份的首页
+  // 2. 已登录禁止进登录页
   if (to.path === '/login') {
     if (identity === 'teacher') {
       next('/main/dashboard');
@@ -75,14 +78,20 @@ router.beforeEach((to, from, next) => {
       next('/main/student-course');
     } else {
       ElMessage.error('身份验证失败，请重新登录');
-      localStorage.removeItem('token'); // 清除无效token
+      localStorage.removeItem('token');
+      localStorage.removeItem('userInfo');
       next('/login');
     }
-    return; // 终止后续逻辑
+    return;
   }
 
-  // 3. 权限校验：按身份限制页面访问
-  // 教师页面集合
+  // 3. 身份为空直接重登
+  if (!identity) {
+    ElMessage.error('身份信息缺失，请重新登录');
+    return next('/login');
+  }
+
+  // 页面权限分组不变
   const teacherPages = [
     '/main/dashboard',
     '/main/teacher-course',
@@ -91,7 +100,6 @@ router.beforeEach((to, from, next) => {
     '/main/score',
     '/main/course-resource'
   ];
-  // 学生页面集合
   const studentPages = [
     '/main/student-course',
     '/main/submit-homework',
@@ -110,7 +118,6 @@ router.beforeEach((to, from, next) => {
     return next('/main/student-course');
   }
 
-  // 4. 所有校验通过，放行
   next();
 });
 
