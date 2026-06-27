@@ -216,4 +216,18 @@ public class CourseServiceImpl implements CourseService {
 
         return Result.success("退选成功");
     }
+
+    @Override
+    public Result<List<StudentCourse>> getCourseAllStudent(Integer courseId) {
+        Course course = courseMapper.selectById(courseId);
+        if(course == null){
+            return Result.error("课程不存在");
+        }
+        QueryWrapper<StudentCourse> wrapper = new QueryWrapper<>();
+        wrapper.eq("course_id", courseId);
+        wrapper.eq("status", 1);
+        List<StudentCourse> studentList = studentCourseMapper.selectList(wrapper);
+        // 你之前修复的必须带msg参数
+        return Result.success("查询选课学生列表成功", studentList);
+    }
 }

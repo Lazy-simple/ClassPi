@@ -2,6 +2,9 @@ package com.classpi.service;
 
 import com.classpi.common.Result;
 import com.classpi.dto.CourseDTO;
+import com.classpi.entity.StudentCourse;
+
+import java.util.List;
 
 public interface CourseService {
     // 创建课程
@@ -33,4 +36,7 @@ public interface CourseService {
     
     // 学生退选课程
     Result dropCourse(String studentId, Integer courseId);
+
+    // 根据课程id查询所有已选课学生
+    Result<List<StudentCourse>> getCourseAllStudent(Integer courseId);
 }

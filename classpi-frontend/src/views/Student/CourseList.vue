@@ -1,38 +1,33 @@
 <template>
   <div class="course-select-page">
-    <!-- 顶部操作栏 -->
+    <!-- 顶部操作栏 完全保留你原有代码 -->
     <div class="page-header">
       <h2 class="page-title">🎓 选课中心</h2>
       <div class="search-bar">
         <el-input
-          v-model="searchKeyword"
-          placeholder="搜索课程名称或编号..."
-          prefix-icon="Search"
-          clearable
-          @keyup.enter="loadCourses"
-          style="width: 300px;"
+            v-model="searchKeyword"
+            placeholder="搜索课程名称或编号..."
+            prefix-icon="Search"
+            clearable
+            @keyup.enter="loadCourses"
+            style="width: 300px;"
         />
         <el-button type="primary" :loading="loading" @click="loadCourses" style="margin-left: 10px;">刷新列表</el-button>
       </div>
     </div>
-
-    <!-- 第一部分：我的课表 (已选) -->
+    <!-- 第一部分：我的课表 原样不动 -->
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot"></span>
         <h3>我的课表 ({{ selectedCourses.length }})</h3>
       </div>
-
       <div v-if="selectedCourses.length === 0" class="empty-tip">
         <el-empty description="暂无已选课程，快去下方挑选吧！" />
       </div>
-
       <div v-else class="course-grid">
-        <!-- 注意：key 使用 sc.id 或 sc.courseId，取决于后端返回的主键 -->
         <div class="course-card selected-card" v-for="sc in selectedCourses" :key="sc.id || sc.courseId">
           <div class="card-tag tag-selected">已选</div>
           <div class="card-content">
-            <!-- 兼容处理：如果后端返回 name，就用 name；如果有 courseName 就用 courseName -->
             <h4 class="course-name">{{ sc.courseName || sc.name }}</h4>
             <p class="course-no">编号：{{ sc.courseNo }}</p>
             <div class="info-row">
@@ -44,18 +39,20 @@
           </div>
           <div class="card-action">
             <el-button type="danger" plain size="small" :loading="loading" @click="handleDrop(sc)">退选</el-button>
+            <!-- 新增：已选课程也增加查看选课学生 -->
+            <el-button style="margin-top:8px;" plain size="small" @click="openStudentDialog(sc)">
+              查看选课学生
+            </el-button>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- 第二部分：可选课程池 -->
+    <!-- 第二部分：可选课程池 仅加一个按钮，原有全部保留 -->
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot primary"></span>
         <h3>可选课程</h3>
       </div>
-
       <div class="course-grid">
         <div class="course-card" v-for="course in availableCourses" :key="course.id">
           <div class="card-content">
@@ -69,96 +66,102 @@
             </div>
             <div class="capacity-info">
               <span>余量：</span>
-              <!-- 防止除以0错误 -->
               <el-progress
-                v-if="course.capacity > 0"
-                :percentage="(course.enrolledCount / course.capacity) * 100"
-                :format="() => `${course.enrolledCount || 0}/${course.capacity}`"
-                :stroke-width="8"
-                :status="course.enrolledCount >= course.capacity ? 'exception' : ''"
+                  v-if="course.capacity > 0"
+                  :percentage="(course.enrolledCount / course.capacity) * 100"
+                  :format="() => `${course.enrolledCount || 0}/${course.capacity}`"
+                  :stroke-width="8"
+                  :status="course.enrolledCount >= course.capacity ? 'exception' : ''"
               />
               <span v-else>未设置容量</span>
             </div>
           </div>
           <div class="card-action">
             <el-button
-              v-if="isSelected(course.id)"
-              disabled
-              type="success"
-              plain
+                v-if="isSelected(course.id)"
+                disabled
+                type="success"
+                plain
             >
               <el-icon><Check /></el-icon> 已选
             </el-button>
             <el-button
-              v-else-if="course.enrolledCount >= course.capacity"
-              disabled
-              type="info"
+                v-else-if="course.enrolledCount >= course.capacity"
+                disabled
+                type="info"
             >
               已满
             </el-button>
             <el-button
-              v-else
-              type="primary"
-              :loading="loading"
-              @click="handleSelect(course)"
+                v-else
+                type="primary"
+                :loading="loading"
+                @click="handleSelect(course)"
             >
               立即选课
+            </el-button>
+            <!-- 【新增，不删除原有按钮】查看选课学生按钮 -->
+            <el-button style="margin-top:8px;" plain size="small" @click="openStudentDialog(course)">
+              查看选课学生
             </el-button>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 【全新追加弹窗，不改动上方任何代码】 -->
+    <el-dialog v-model="studentDialogVisible" width="650" title="课程选课学生列表">
+      <el-table :data="studentList" border>
+        <el-table-column label="学生ID" prop="studentId" />
+        <el-table-column label="学生姓名" prop="studentName" />
+        <el-table-column label="选课状态" prop="status" :formatter="formatStatus"/>
+      </el-table>
+      <template #footer>
+        <el-button @click="studentDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '@/store/user';
-import { getCourseList, getStudentCourses, selectCourse, dropCourse } from '@/api/course';
+// 原有接口不变，只新增接口导入
+import { getCourseList, getStudentCourses, selectCourse, dropCourse, getCourseAllStudent } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Search, Clock, User, Collection, Check } from '@element-plus/icons-vue';
-
+// 原有图标全部保留，只追加UserFilled
+import { Search, Clock, User, Collection, Check, UserFilled } from '@element-plus/icons-vue';
 const userStore = useUserStore();
 const loading = ref(false);
 const searchKeyword = ref('');
 const allCourses = ref([]);
 const selectedCourses = ref([]);
-
-// 计算属性：过滤出未选的课程，并根据关键词搜索
+// 原有计算属性、方法全部不动
 const availableCourses = computed(() => {
   let courses = allCourses.value.filter(c => !selectedCourses.value.some(sc => sc.courseId === c.id));
   if (searchKeyword.value) {
     const kw = searchKeyword.value.toLowerCase();
     courses = courses.filter(c =>
-      (c.courseNo && c.courseNo.toLowerCase().includes(kw)) ||
-      (c.name && c.name.toLowerCase().includes(kw))
+        (c.courseNo && c.courseNo.toLowerCase().includes(kw)) ||
+        (c.name && c.name.toLowerCase().includes(kw))
     );
   }
   return courses;
 });
-
 const isSelected = (cid) => selectedCourses.value.some(sc => sc.courseId === cid);
-
-// 加载数据
 const loadCourses = async () => {
-  // 安全检查：确保用户信息已加载
   if (!userStore.userInfo || !userStore.userInfo.id) {
     console.warn("用户信息尚未加载，跳过课程请求");
     return;
   }
-
   loading.value = true;
   try {
-    // 并行请求：获取所有课程 和 当前学生的已选课程
     const [allRes, selRes] = await Promise.all([
       getCourseList(),
-      getStudentCourses(userStore.userInfo.id) // 此时 API 会自动拼接 ID 到 URL
+      getStudentCourses(userStore.userInfo.id)
     ]);
-
-    // 假设后端返回格式为 { code: 200, data: [...] }
     if (allRes.code === 200) allCourses.value = allRes.data || [];
     if (selRes.code === 200) selectedCourses.value = selRes.data || [];
-
   } catch (error) {
     console.error("加载课程失败:", error);
     ElMessage.error('加载课程数据失败，请检查网络或联系管理员');
@@ -166,21 +169,18 @@ const loadCourses = async () => {
     loading.value = false;
   }
 };
-
-// 选课逻辑
 const handleSelect = async (course) => {
   try {
     const res = await selectCourse({
       studentId: userStore.userInfo.id,
-      studentName: userStore.userInfo.username || userStore.userInfo.name, // 兼容不同字段名
+      studentName: userStore.userInfo.username || userStore.userInfo.name,
       courseId: course.id,
       courseNo: course.courseNo,
       courseName: course.name
     });
-
     if (res.code === 200) {
       ElMessage.success(`成功选修：${course.name}`);
-      loadCourses(); // 重新加载以更新状态
+      loadCourses();
     } else {
       ElMessage.error(res.msg || '选课失败');
     }
@@ -189,21 +189,17 @@ const handleSelect = async (course) => {
     ElMessage.error('网络请求异常');
   }
 };
-
-// 退课逻辑
 const handleDrop = async (sc) => {
   try {
     await ElMessageBox.confirm(
-      `确定要退选《${sc.courseName || sc.name}》吗？`,
-      '退选确认',
-      { confirmButtonText: '确定退选', cancelButtonText: '取消', type: 'warning' }
+        `确定要退选《${sc.courseName || sc.name}》吗？`,
+        '退选确认',
+        { confirmButtonText: '确定退选', cancelButtonText: '取消', type: 'warning' }
     );
-
     const res = await dropCourse({
       studentId: userStore.userInfo.id,
-      courseId: sc.courseId || sc.id // 兼容 ID 字段
+      courseId: sc.courseId || sc.id
     });
-
     if (res.code === 200) {
       ElMessage.success('退选成功');
       loadCourses();
@@ -211,11 +207,40 @@ const handleDrop = async (sc) => {
       ElMessage.error(res.msg);
     }
   } catch (e) {
-    // 用户点击取消，不做处理
+    // 用户取消不处理
   }
 };
-
 onMounted(loadCourses);
+
+// ==================== 下面全部是新增代码，原有不动 ====================
+// 弹窗控制变量
+const studentDialogVisible = ref(false)
+const studentList = ref([])
+
+// 打开弹窗、请求该课程全部学生
+const openStudentDialog = async (item) => {
+  studentDialogVisible.value = true
+  studentList.value = []
+  // 区分两种数据：
+  // 1. 可选课程：item.id 就是课程id
+  // 2. 我的已选课：item.courseId 才是课程真实主键
+  const realCourseId = item.courseId || item.id
+  try {
+    const res = await getCourseAllStudent(realCourseId)
+    if (res.code === 200) {
+      studentList.value = res.data
+    } else {
+      ElMessage.error(res.message || '获取选课学生失败')
+    }
+  } catch (err) {
+    ElMessage.error('获取选课学生失败')
+    studentList.value = []
+  }
+}
+// 状态格式化：1已选 2退选
+const formatStatus = (row) => {
+  return row.status === 1 ? "正常选课" : "已退选"
+}
 </script>
 
 <style scoped>

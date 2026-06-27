@@ -2,9 +2,12 @@ package com.classpi.controller;
 
 import com.classpi.common.Result;
 import com.classpi.dto.CourseDTO;
+import com.classpi.entity.StudentCourse;
 import com.classpi.service.CourseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/course")
@@ -75,5 +78,13 @@ public class CourseController {
     public Result dropCourse(@RequestParam String studentId, 
                              @RequestParam Integer courseId) {
         return courseService.dropCourse(studentId, courseId);
+    }
+
+    /**
+     * 根据课程ID 获取该课程全部已选课学生（学生/老师都能调用）
+     */
+    @GetMapping("/{courseId}/allStudent")
+    public Result<List<StudentCourse>> getCourseAllStudent(@PathVariable Integer courseId){
+        return courseService.getCourseAllStudent(courseId);
     }
 }

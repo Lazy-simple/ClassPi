@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-
+import { ref } from 'vue'
 // 获取全部课程（可选课程池）
 export function getCourseList() {
   return request({ url: '/course/list', method: 'get' })
@@ -39,6 +39,24 @@ export function selectCourse(data) {
     method: 'post',
     params: data // 将 studentId, courseId 等作为查询参数发送
   })
+}
+
+// 根据课程id获取全部选课学生
+export function getCourseAllStudent(courseId){
+  return request({
+    url:`/course/${courseId}/allStudent`,
+    method:'get'
+  })
+}
+
+const courseStudentList = ref([])
+// 点击课程，加载所有选课人
+const showAllMember = async (course) => {
+  const res = await getCourseAll(course.id)
+  if(res.code === 200){
+    courseStudentList.value = res.data
+    // 弹出弹窗展示列表
+  }
 }
 
 // 【核心修复】学生退课
