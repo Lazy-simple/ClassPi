@@ -37,6 +37,7 @@ const routes = [
       { path: 'course-topic', component: () => import('@/views/common/CourseTopic.vue') },
       // 学生路由
       { path: 'student-course', component: () => import('@/views/Student/CourseList.vue') },
+      { path: 'course-detail/:courseId', component: () => import('@/views/Student/CourseDetail.vue') },
       { path: 'submit-homework', component: () => import('@/views/Student/HomeworkSubmit.vue') },
       { path: 'student-resource', component: () => import('@/views/Student/StudentResource.vue') },
       { path: 'student-topic', component: () => import('@/views/common/CourseTopic.vue') }

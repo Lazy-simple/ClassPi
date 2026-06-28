@@ -1,8 +1,7 @@
 <template>
   <div class="course-select-page">
-    <!-- 顶部操作栏 完全保留你原有代码 -->
     <div class="page-header">
-      <h2 class="page-title">🎓 选课中心</h2>
+      <h2 class="page-title">🎓 我的课程</h2>
       <div class="search-bar">
         <el-input
             v-model="searchKeyword"
@@ -15,11 +14,10 @@
         <el-button type="primary" :loading="loading" @click="loadCourses" style="margin-left: 10px;">刷新列表</el-button>
       </div>
     </div>
-    <!-- 第一部分：我的课表 原样不动 -->
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot"></span>
-        <h3>我的课表 ({{ selectedCourses.length }})</h3>
+        <h3>已选课程 ({{ selectedCourses.length }})</h3>
       </div>
       <div v-if="selectedCourses.length === 0" class="empty-tip">
         <el-empty description="暂无已选课程，快去下方挑选吧！" />
@@ -27,22 +25,21 @@
       <div v-else class="course-grid">
         <div class="course-card selected-card" v-for="sc in selectedCourses" :key="sc.id || sc.courseId">
           <div class="card-tag tag-selected">已选</div>
-          <div class="card-content">
+          <div class="card-content" @click="goToCourseDetail(sc)">
             <h4 class="course-name">{{ sc.courseName || sc.name }}</h4>
             <p class="course-no">编号：{{ sc.courseNo }}</p>
             <div class="info-row">
-              <el-icon><Collection /></el-icon> <span>{{ sc.credit || 0 }} 学分</span>
+              <el-icon><User /></el-icon> <span>{{ sc.teacherName || '未知教师' }}</span>
             </div>
             <div class="info-row">
-              <el-icon><Clock /></el-icon> <span>{{ sc.schedule || '待定' }}</span>
+              <el-icon><CreditCard /></el-icon> <span>{{ sc.credit || 0 }} 学分</span>
             </div>
           </div>
           <div class="card-action">
-            <el-button type="danger" plain size="small" :loading="loading" @click="handleDrop(sc)">退选</el-button>
-            <!-- 新增：已选课程也增加查看选课学生 -->
-            <el-button style="margin-top:8px;" plain size="small" @click="openStudentDialog(sc)">
-              查看选课学生
+            <el-button type="primary" size="small" @click="goToCourseDetail(sc)">
+              <el-icon><ArrowRight /></el-icon> 进入课程
             </el-button>
+            <el-button type="danger" plain size="small" style="margin-top:8px;" @click="handleDrop(sc)">退选</el-button>
           </div>
         </div>
       </div>
@@ -125,13 +122,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useUserStore } from '@/store/user';
-// 原有接口不变，只新增接口导入
 import { getCourseList, getStudentCourses, selectCourse, dropCourse, getCourseAllStudent } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
-// 原有图标全部保留，只追加UserFilled
-import { Search, Clock, User, Collection, Check, UserFilled } from '@element-plus/icons-vue';
+import { Search, Clock, User, Collection, Check, UserFilled, CreditCard, ArrowRight } from '@element-plus/icons-vue';
 const userStore = useUserStore();
+const router = useRouter();
 const loading = ref(false);
 const searchKeyword = ref('');
 const allCourses = ref([]);
@@ -210,6 +207,10 @@ const handleDrop = async (sc) => {
     // 用户取消不处理
   }
 };
+const goToCourseDetail = (sc) => {
+  const realCourseId = sc.courseId || sc.id;
+  router.push(`/main/course-detail/${realCourseId}`);
+};
 onMounted(loadCourses);
 
 // ==================== 下面全部是新增代码，原有不动 ====================
@@ -267,4 +268,6 @@ const formatStatus = (row) => {
 .card-action { margin-top: 20px; border-top: 1px solid #ebeef5; padding-top: 15px; text-align: right; }
 .card-action .el-button { width: 100%; border-radius: 6px; }
 .empty-tip { background: #fff; padding: 40px; border-radius: 12px; text-align: center; }
+.card-content { cursor: pointer; }
+.card-content:hover { background-color: rgba(79, 70, 229, 0.03); border-radius: 8px; }
 </style>

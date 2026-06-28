@@ -157,7 +157,6 @@ const hasFile = computed(() => {
   return files.value && files.value.length > 0
 })
 
-// 加载学生已选课程
 const loadCourses = async () => {
   try {
     const studentId = userStore.userInfo?.id || localStorage.getItem('userId')
@@ -166,6 +165,32 @@ const loadCourses = async () => {
       courseList.value = res.data || []
       if (courseList.value.length === 0) {
         ElMessage.warning('你还没有选修任何课程，请先去选课')
+      } else {
+        const savedCourseId = localStorage.getItem('currentCourseId')
+        const savedHomeworkId = localStorage.getItem('currentHomeworkId')
+        if (savedCourseId) {
+          form.value.courseId = Number(savedCourseId)
+          const courseRes = await getHomeworkByCourse(Number(savedCourseId))
+          if (courseRes.code === 200) {
+            homeworkList.value = courseRes.data || []
+            const course = courseList.value.find(c => (c.courseId || c.id) === Number(savedCourseId))
+            if (course) {
+              assignmentData.value.courseName = course.courseName || course.name
+            }
+            if (savedHomeworkId && homeworkList.value.length > 0) {
+              form.value.homeworkId = Number(savedHomeworkId)
+              const hw = homeworkList.value.find(h => h.id === Number(savedHomeworkId))
+              if (hw) {
+                assignmentData.value = {
+                  id: hw.id,
+                  courseName: assignmentData.value.courseName,
+                  title: hw.title,
+                  deadline: hw.deadline || '--'
+                }
+              }
+            }
+          }
+        }
       }
     }
   } catch (error) {
