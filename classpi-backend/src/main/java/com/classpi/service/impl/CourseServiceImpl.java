@@ -36,14 +36,14 @@ public class CourseServiceImpl implements CourseService {
         Course course = new Course();
         course.setCourseNo(courseDTO.getCourseNo());
         course.setName(courseDTO.getName());
-        course.setDescription(courseDTO.getDescription());
+        course.setDescription(courseDTO.getDescription() != null ? courseDTO.getDescription() : "");
         course.setTeacherId(courseDTO.getTeacherId());
-        course.setTeacherName(courseDTO.getTeacherName());
-        course.setDepartment(courseDTO.getDepartment());
+        course.setTeacherName(courseDTO.getTeacherName() != null ? courseDTO.getTeacherName() : "教师");
+        course.setDepartment(courseDTO.getDepartment() != null ? courseDTO.getDepartment() : "计算机学院");
         course.setClassroom(courseDTO.getClassroom());
         course.setSchedule(courseDTO.getSchedule());
-        course.setCredit(courseDTO.getCredit());
-        course.setCapacity(courseDTO.getCapacity());
+        course.setCredit(courseDTO.getCredit() != null ? courseDTO.getCredit() : 3);
+        course.setCapacity(courseDTO.getCapacity() != null ? courseDTO.getCapacity() : 50);
         course.setEnrolledCount(0);
 
         courseMapper.insert(course);

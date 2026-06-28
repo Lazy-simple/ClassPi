@@ -136,7 +136,7 @@ const submitCourse = async () => {
       dialogVisible.value = false;
       loadCourses();
     } else {
-      ElMessage.error(res.msg);
+      ElMessage.error(res.message || '保存失败');
     }
   } finally {
     submitting.value = false;
