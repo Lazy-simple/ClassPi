@@ -89,7 +89,14 @@
             </div>
             <div class="comment-item" v-for="comment in commentMap[topic.id] || []" :key="comment.id">
               <span>
-                {{ comment.isAnonymous === 1 ? '匿名用户' : (comment.authorType === 1 ? '教师' : comment.authorName || '用户') }}：
+                <template v-if="comment.isAnonymous === 1">
+                  匿名用户
+                </template>
+                <template v-else>
+                  <span v-if="comment.authorType === 1" style="color:#409eff;">👨‍🏫 {{ comment.authorName }}</span>
+                  <span v-else>{{ comment.authorName || '用户' }}</span>
+                </template>
+                ：
               </span>
               <span>{{ comment.content }}</span>
               <span style="margin-left:12px;font-size:12px;color:#999">{{ formatTime(comment.createTime) }}</span>
