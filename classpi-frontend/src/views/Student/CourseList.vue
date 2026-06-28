@@ -14,16 +14,52 @@
         <el-button type="primary" :loading="loading" @click="loadCourses" style="margin-left: 10px;">刷新列表</el-button>
       </div>
     </div>
+
+    <div v-if="pinnedCourses.length > 0" class="section-block">
+      <div class="section-title">
+        <span class="title-dot warning"></span>
+        <h3>📌 置顶课程 ({{ pinnedCourses.length }})</h3>
+      </div>
+      <div class="course-grid">
+        <div class="course-card selected-card pinned-card" v-for="sc in pinnedCourses" :key="'pin-' + (sc.id || sc.courseId)">
+          <div class="card-tag tag-pinned">置顶</div>
+          <div class="card-content" @click="goToCourseDetail(sc)">
+            <h4 class="course-name">{{ sc.courseName || sc.name }}</h4>
+            <p class="course-no">编号：{{ sc.courseNo }}</p>
+            <div class="info-row">
+              <el-icon><User /></el-icon> <span>{{ sc.teacherName || '未知教师' }}</span>
+            </div>
+            <div class="info-row">
+              <el-icon><CreditCard /></el-icon> <span>{{ sc.credit || 0 }} 学分</span>
+            </div>
+          </div>
+          <div class="card-action">
+            <el-button type="primary" size="small" @click="goToCourseDetail(sc)">
+              <el-icon><ArrowRight /></el-icon> 进入课程
+            </el-button>
+            <div class="card-action-bottom">
+              <el-button size="small" text type="warning" @click.stop="togglePin(sc)">
+                取消置顶
+              </el-button>
+              <el-button size="small" text type="danger" @click.stop="handleDrop(sc)">
+                退选
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot"></span>
-        <h3>已选课程 ({{ selectedCourses.length }})</h3>
+        <h3>已选课程 ({{ unpinnedCourses.length }})</h3>
       </div>
-      <div v-if="selectedCourses.length === 0" class="empty-tip">
+      <div v-if="unpinnedCourses.length === 0" class="empty-tip">
         <el-empty description="暂无已选课程，快去下方挑选吧！" />
       </div>
       <div v-else class="course-grid">
-        <div class="course-card selected-card" v-for="sc in selectedCourses" :key="sc.id || sc.courseId">
+        <div class="course-card selected-card" v-for="sc in unpinnedCourses" :key="sc.id || sc.courseId">
           <div class="card-tag tag-selected">已选</div>
           <div class="card-content" @click="goToCourseDetail(sc)">
             <h4 class="course-name">{{ sc.courseName || sc.name }}</h4>
@@ -39,7 +75,14 @@
             <el-button type="primary" size="small" @click="goToCourseDetail(sc)">
               <el-icon><ArrowRight /></el-icon> 进入课程
             </el-button>
-            <el-button type="danger" plain size="small" style="margin-top:8px;" @click="handleDrop(sc)">退选</el-button>
+            <div class="card-action-bottom">
+              <el-button size="small" text type="primary" @click.stop="togglePin(sc)">
+                置顶
+              </el-button>
+              <el-button size="small" text type="danger" @click.stop="handleDrop(sc)">
+                退选
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -133,6 +176,77 @@ const loading = ref(false);
 const searchKeyword = ref('');
 const allCourses = ref([]);
 const selectedCourses = ref([]);
+const pinnedCourseIds = ref([]);
+
+const PIN_KEY = 'student_pinned_courses';
+
+const loadPinnedCourses = () => {
+  try {
+    const saved = localStorage.getItem(PIN_KEY);
+    if (saved) {
+      pinnedCourseIds.value = JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('读取置顶课程失败:', e);
+  }
+};
+
+const savePinnedCourses = () => {
+  try {
+    localStorage.setItem(PIN_KEY, JSON.stringify(pinnedCourseIds.value));
+  } catch (e) {
+    console.error('保存置顶课程失败:', e);
+  }
+};
+
+const isPinned = (course) => {
+  const id = course.courseId || course.id;
+  return pinnedCourseIds.value.includes(id);
+};
+
+const togglePin = (course) => {
+  const id = course.courseId || course.id;
+  const index = pinnedCourseIds.value.indexOf(id);
+  if (index > -1) {
+    pinnedCourseIds.value.splice(index, 1);
+    ElMessage.success('已取消置顶');
+  } else {
+    pinnedCourseIds.value.unshift(id);
+    ElMessage.success('已置顶');
+  }
+  savePinnedCourses();
+};
+
+const pinnedCourses = computed(() => {
+  let courses = selectedCourses.value.filter(sc => isPinned(sc));
+  if (searchKeyword.value) {
+    const kw = searchKeyword.value.toLowerCase();
+    courses = courses.filter(c =>
+        (c.courseNo && c.courseNo.toLowerCase().includes(kw)) ||
+        (c.courseName && c.courseName.toLowerCase().includes(kw)) ||
+        (c.name && c.name.toLowerCase().includes(kw))
+    );
+  }
+  return courses.sort((a, b) => {
+    const aId = a.courseId || a.id;
+    const bId = b.courseId || b.id;
+    return pinnedCourseIds.value.indexOf(aId) - pinnedCourseIds.value.indexOf(bId);
+  });
+});
+
+const unpinnedCourses = computed(() => {
+  let courses = selectedCourses.value.filter(sc => !isPinned(sc));
+  if (searchKeyword.value) {
+    const kw = searchKeyword.value.toLowerCase();
+    courses = courses.filter(c =>
+        (c.courseNo && c.courseNo.toLowerCase().includes(kw)) ||
+        (c.courseName && c.courseName.toLowerCase().includes(kw)) ||
+        (c.name && c.name.toLowerCase().includes(kw))
+    );
+  }
+  return courses;
+});
+
 // 原有计算属性、方法全部不动
 const availableCourses = computed(() => {
   let courses = allCourses.value.filter(c => !selectedCourses.value.some(sc => sc.courseId === c.id));
@@ -211,7 +325,10 @@ const goToCourseDetail = (sc) => {
   const realCourseId = sc.courseId || sc.id;
   router.push(`/main/course-detail/${realCourseId}`);
 };
-onMounted(loadCourses);
+onMounted(() => {
+  loadPinnedCourses();
+  loadCourses();
+});
 
 // ==================== 下面全部是新增代码，原有不动 ====================
 // 弹窗控制变量
@@ -270,4 +387,23 @@ const formatStatus = (row) => {
 .empty-tip { background: #fff; padding: 40px; border-radius: 12px; text-align: center; }
 .card-content { cursor: pointer; }
 .card-content:hover { background-color: rgba(79, 70, 229, 0.03); border-radius: 8px; }
+
+.title-dot.warning { background: linear-gradient(135deg, #ff9800, #ffb74d); }
+
+.tag-pinned { position: absolute; top: -10px; right: 20px; background: linear-gradient(135deg, #ff9800, #ffb74d); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(255, 152, 0, 0.4); }
+
+.pinned-card { border-color: #fff0e0; background: linear-gradient(to bottom right, #ffffff, #fffaf0); }
+
+.card-action-bottom {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ebeef5;
+}
+
+.card-action-bottom .el-button {
+  width: auto;
+  padding: 4px 8px;
+}
 </style>
