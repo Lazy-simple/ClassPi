@@ -139,8 +139,15 @@ import {
 const route = useRoute()
 const userStore = useUserStore()
 
-// 课程ID
-const courseId = ref(Number(route.query.courseId) || 1)
+const props = defineProps({
+  courseId: {
+    type: Number,
+    default: null
+  }
+})
+
+// 课程ID：优先使用props传入，否则从URL查询参数获取
+const courseId = ref(Number(props.courseId || route.query.courseId || 1))
 
 // 加载状态
 const loading = ref(false)

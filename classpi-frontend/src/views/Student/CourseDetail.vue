@@ -137,46 +137,114 @@
       <div v-else-if="activeTab === 'topic'" class="topic-section">
         <div class="section-header">
           <h3>💬 课程讨论</h3>
-          <el-button type="primary" size="small" @click="topicDialogVisible = true">
+          <el-button type="primary" size="small" @click="showPublishDialog = true">
             <el-icon><Plus /></el-icon> 发起讨论
           </el-button>
         </div>
-        <div v-if="loading" class="loading-state">
-          <span>加载中...</span>
-        </div>
-        <div v-else-if="topicList.length === 0" class="empty-state">
-          <el-empty description="暂无讨论" />
-        </div>
-        <div v-else class="topic-list">
-          <div class="topic-card" v-for="topic in topicList" :key="topic.id">
-            <div class="topic-header">
-              <h4 class="topic-title">{{ topic.title }}</h4>
-              <span class="topic-author">{{ topic.authorName || '匿名' }}</span>
+
+        <div v-if="selectedTopic" class="topic-detail">
+          <div class="topic-detail-header" @click="selectedTopic = null">
+            <el-button text type="primary">
+              <el-icon><ArrowLeft /></el-icon> 返回话题列表
+            </el-button>
+          </div>
+          <div class="topic-detail-card">
+            <h3 class="topic-detail-title">{{ selectedTopic.title }}</h3>
+            <div class="topic-detail-meta">
+              <span>{{ selectedTopic.authorName || '匿名' }}</span>
+              <span>{{ selectedTopic.createTime || '--' }}</span>
             </div>
-            <p class="topic-content">{{ topic.content || '暂无内容' }}</p>
-            <div class="topic-footer">
-              <span class="topic-time">{{ topic.createTime || '--' }}</span>
-              <span class="topic-replies">
-                <el-icon><ChatDotRound /></el-icon> {{ topic.replyCount || 0 }} 回复
-              </span>
+            <p class="topic-detail-content">{{ selectedTopic.content || '暂无内容' }}</p>
+          </div>
+
+          <div class="comment-section">
+            <div class="comment-input-area">
+              <el-input
+                v-model="newComment"
+                type="textarea"
+                :rows="3"
+                placeholder="发表你的评论..."
+                maxlength="500"
+                show-word-limit
+              />
+              <div class="comment-actions">
+                <el-checkbox v-model="commentAnonymous">匿名评论</el-checkbox>
+                <el-button type="primary" size="small" :loading="commentSubmitting" @click="submitComment">
+                  发表评论
+                </el-button>
+              </div>
+            </div>
+
+            <div class="comment-list">
+              <div v-if="commentLoading" class="loading-state">
+                <span>加载评论中...</span>
+              </div>
+              <div v-else-if="commentList.length === 0" class="empty-state">
+                <el-empty description="暂无评论，快来发表第一条评论吧" />
+              </div>
+              <div v-else class="comment-item" v-for="comment in commentList" :key="comment.id">
+                <div class="comment-avatar">
+                  <el-avatar :size="40">
+                    {{ (comment.authorName || '匿').charAt(0) }}
+                  </el-avatar>
+                </div>
+                <div class="comment-body">
+                  <div class="comment-header">
+                    <span class="comment-author">{{ comment.authorName || '匿名用户' }}</span>
+                    <span class="comment-time">{{ comment.createTime || '--' }}</span>
+                  </div>
+                  <p class="comment-content">{{ comment.content }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else>
+          <div v-if="loading" class="loading-state">
+            <span>加载中...</span>
+          </div>
+          <div v-else-if="topicList.length === 0" class="empty-state">
+            <el-empty description="暂无讨论" />
+          </div>
+          <div v-else class="topic-list">
+            <div class="topic-card" v-for="topic in topicList" :key="topic.id" @click="openTopic(topic)">
+              <div class="topic-card-header">
+                <h4 class="topic-card-title">{{ topic.title }}</h4>
+              </div>
+              <p class="topic-card-content">{{ topic.content || '暂无内容' }}</p>
+              <div class="topic-card-footer">
+                <span class="topic-card-author">
+                  <el-icon><User /></el-icon>
+                  {{ topic.authorName || '匿名' }}
+                </span>
+                <span class="topic-card-time">{{ topic.createTime || '--' }}</span>
+                <span class="topic-card-reply">
+                  <el-icon><ChatDotRound /></el-icon>
+                  {{ topic.replyCount || topic.replyNum || 0 }} 回复
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <el-dialog v-model="topicDialogVisible" title="发起讨论" width="600px">
+    <el-dialog v-model="showPublishDialog" title="发起讨论" width="600px">
       <el-form :model="topicForm" label-position="top">
         <el-form-item label="标题" required>
-          <el-input v-model="topicForm.title" placeholder="请输入讨论标题" />
+          <el-input v-model="topicForm.title" placeholder="请输入讨论标题" maxlength="100" show-word-limit />
         </el-form-item>
         <el-form-item label="内容" required>
-          <el-input v-model="topicForm.content" type="textarea" :rows="4" placeholder="请输入讨论内容" />
+          <el-input v-model="topicForm.content" type="textarea" :rows="5" placeholder="请输入讨论内容" maxlength="2000" show-word-limit />
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="topicForm.isAnonymous">匿名发布</el-checkbox>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="topicDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="topicSubmitting" @click="submitTopic">提交</el-button>
+        <el-button @click="showPublishDialog = false">取消</el-button>
+        <el-button type="primary" :loading="topicSubmitting" @click="submitTopic">发布</el-button>
       </template>
     </el-dialog>
   </div>
@@ -187,13 +255,13 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  User, Collection, DocumentChecked, Document, ChatDotRound,
-  Clock, UploadFilled, Check, Link, Folder, Plus
+  User, Collection, DocumentChecked, Document, ChatDotRound, Clock,
+  UploadFilled, Check, Link, Folder, Plus, ArrowLeft
 } from '@element-plus/icons-vue'
 import { getStudentCourses } from '@/api/course'
 import { getHomeworkByCourse } from '@/api/homework'
 import { getResourceTree, downloadResource as downloadRes } from '@/api/resource'
-import { getTopicList, publishTopic } from '@/api/topic'
+import { getTopicList, publishTopic, getCommentList, addComment } from '@/api/topic'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
@@ -207,22 +275,29 @@ const courseInfo = ref({})
 const homeworkList = ref([])
 const resourceList = ref([])
 const topicList = ref([])
-
-const topicDialogVisible = ref(false)
+const selectedTopic = ref(null)
+const commentList = ref([])
+const commentLoading = ref(false)
+const showPublishDialog = ref(false)
 const topicSubmitting = ref(false)
+const commentSubmitting = ref(false)
+const newComment = ref('')
+const commentAnonymous = ref(false)
 
 const topicForm = ref({
   title: '',
-  content: ''
+  content: '',
+  isAnonymous: false
 })
 
 const defaultCover = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=education%20course%20abstract%20banner%20modern%20design&image_size=landscape_16_9'
 
 const switchTab = (tab) => {
   activeTab.value = tab
+  selectedTopic.value = null
   if (tab === 'homework') loadHomework()
   else if (tab === 'resource') loadResource()
-  else if (tab === 'topic') loadTopic()
+  else if (tab === 'topic') loadTopics()
 }
 
 const loadCourseInfo = async () => {
@@ -268,20 +343,6 @@ const loadResource = async () => {
   }
 }
 
-const loadTopic = async () => {
-  loading.value = true
-  try {
-    const res = await getTopicList(courseId.value)
-    if (res.code === 200) {
-      topicList.value = res.data || []
-    }
-  } catch (error) {
-    console.error('加载讨论失败:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
 const getHomeworkStatus = (hw) => {
   if (hw.submitted) {
     return { text: '已提交', type: 'success' }
@@ -318,9 +379,43 @@ const formatFileSize = (bytes) => {
   return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i]
 }
 
+const loadTopics = async () => {
+  loading.value = true
+  try {
+    const res = await getTopicList(courseId.value)
+    if (res.code === 200) {
+      topicList.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载讨论列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const openTopic = async (topic) => {
+  selectedTopic.value = topic
+  commentList.value = []
+  commentLoading.value = true
+  try {
+    const res = await getCommentList(topic.id)
+    if (res.code === 200) {
+      commentList.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载评论失败:', error)
+  } finally {
+    commentLoading.value = false
+  }
+}
+
 const submitTopic = async () => {
-  if (!topicForm.value.title || !topicForm.value.content) {
-    ElMessage.warning('请填写完整内容')
+  if (!topicForm.value.title.trim()) {
+    ElMessage.warning('请输入标题')
+    return
+  }
+  if (!topicForm.value.content.trim()) {
+    ElMessage.warning('请输入内容')
     return
   }
   topicSubmitting.value = true
@@ -332,14 +427,15 @@ const submitTopic = async () => {
       title: topicForm.value.title,
       content: topicForm.value.content,
       authorId: userId,
-      authorName: userName,
-      authorType: 2
+      authorName: topicForm.value.isAnonymous ? '匿名用户' : userName,
+      authorType: 2,
+      isAnonymous: topicForm.value.isAnonymous ? 1 : 0
     })
     if (res.code === 200) {
       ElMessage.success('发布成功')
-      topicDialogVisible.value = false
-      topicForm.value = { title: '', content: '' }
-      loadTopic()
+      showPublishDialog.value = false
+      topicForm.value = { title: '', content: '', isAnonymous: false }
+      loadTopics()
     } else {
       ElMessage.error(res.msg || '发布失败')
     }
@@ -348,6 +444,39 @@ const submitTopic = async () => {
     ElMessage.error('发布失败')
   } finally {
     topicSubmitting.value = false
+  }
+}
+
+const submitComment = async () => {
+  if (!newComment.value.trim()) {
+    ElMessage.warning('请输入评论内容')
+    return
+  }
+  commentSubmitting.value = true
+  try {
+    const userId = userStore.userInfo?.id || localStorage.getItem('userId')
+    const userName = userStore.userInfo?.username || userStore.userInfo?.name || localStorage.getItem('userName') || '学生'
+    const res = await addComment({
+      topicId: selectedTopic.value.id,
+      content: newComment.value,
+      authorId: userId,
+      authorName: commentAnonymous.value ? '匿名用户' : userName,
+      authorType: 2,
+      isAnonymous: commentAnonymous.value ? 1 : 0
+    })
+    if (res.code === 200) {
+      ElMessage.success('评论成功')
+      newComment.value = ''
+      commentAnonymous.value = false
+      openTopic(selectedTopic.value)
+    } else {
+      ElMessage.error(res.msg || '评论失败')
+    }
+  } catch (error) {
+    console.error('评论失败:', error)
+    ElMessage.error('评论失败')
+  } finally {
+    commentSubmitting.value = false
   }
 }
 
@@ -509,7 +638,7 @@ onMounted(() => {
   color: #4f46e5;
 }
 
-.homework-list, .resource-list, .topic-list {
+.homework-list, .resource-list {
   display: grid;
   gap: 16px;
 }
@@ -611,9 +740,19 @@ onMounted(() => {
   color: #909399;
 }
 
+.topic-section {
+  padding: 0;
+}
+
+.topic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .topic-card {
   background: white;
-  padding: 20px;
+  padding: 20px 24px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   cursor: pointer;
@@ -621,31 +760,23 @@ onMounted(() => {
 }
 
 .topic-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
   transform: translateY(-2px);
 }
 
-.topic-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+.topic-card-header {
   margin-bottom: 10px;
 }
 
-.topic-title {
+.topic-card-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: #303133;
 }
 
-.topic-author {
-  font-size: 13px;
-  color: #909399;
-}
-
-.topic-content {
-  margin: 0 0 12px 0;
+.topic-card-content {
+  margin: 0 0 16px 0;
   font-size: 14px;
   color: #606266;
   line-height: 1.6;
@@ -655,22 +786,140 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.topic-footer {
+.topic-card-footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-}
-
-.topic-time {
+  gap: 20px;
   font-size: 13px;
   color: #909399;
 }
 
-.topic-replies {
+.topic-card-footer > span {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.topic-card-reply {
+  margin-left: auto !important;
+  color: #409eff !important;
+}
+
+.topic-detail {
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.topic-detail-header {
+  margin-bottom: 16px;
+}
+
+.topic-detail-card {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  margin-bottom: 20px;
+}
+
+.topic-detail-title {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.topic-detail-meta {
+  display: flex;
+  gap: 16px;
   font-size: 13px;
+  color: #909399;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.topic-detail-content {
+  margin: 0;
+  font-size: 15px;
+  color: #303133;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.comment-section {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.comment-input-area {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.comment-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f7fa;
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+.comment-avatar {
+  flex-shrink: 0;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.comment-author {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.comment-content {
+  margin: 0;
+  font-size: 14px;
   color: #606266;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 </style>

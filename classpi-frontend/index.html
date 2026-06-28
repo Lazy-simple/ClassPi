@@ -171,42 +171,107 @@
     // ===================== 3. 拖拽功能 =====================
     function enableDrag() {
         const waifu = document.getElementById('waifu');
-        if (!waifu) return;
+        const inputBox = document.querySelector('.ai-input-box');
+        if (!waifu || !inputBox) return;
 
         let isDragging = false;
+        let hasMoved = false;
         let offsetX = 0;
         let offsetY = 0;
+        let inputOffsetX = 0;
+        let inputOffsetY = 0;
 
-        waifu.addEventListener('mousedown', function(e) {
-            e.stopPropagation();
+        const isPointInWaifu = function(x, y) {
+            const rect = waifu.getBoundingClientRect();
+            return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+        };
+
+        const startDrag = function(x, y) {
             isDragging = true;
-            offsetX = e.clientX - waifu.offsetLeft;
-            offsetY = e.clientY - waifu.offsetTop;
-            waifu.style.transition = 'none';
-        }, true);
+            hasMoved = false;
+            
+            const waifuRect = waifu.getBoundingClientRect();
+            const inputRect = inputBox.getBoundingClientRect();
+            
+            offsetX = x - waifuRect.left;
+            offsetY = y - waifuRect.top;
+            
+            inputOffsetX = inputRect.left - waifuRect.left;
+            inputOffsetY = inputRect.top - waifuRect.top;
+            
+            waifu.style.setProperty('right', 'auto', 'important');
+            waifu.style.setProperty('bottom', 'auto', 'important');
+            waifu.style.setProperty('left', waifuRect.left + 'px', 'important');
+            waifu.style.setProperty('top', waifuRect.top + 'px', 'important');
+            waifu.style.setProperty('transition', 'none', 'important');
+            waifu.style.setProperty('z-index', '99999', 'important');
+            
+            inputBox.style.setProperty('right', 'auto', 'important');
+            inputBox.style.setProperty('bottom', 'auto', 'important');
+            inputBox.style.setProperty('left', inputRect.left + 'px', 'important');
+            inputBox.style.setProperty('top', inputRect.top + 'px', 'important');
+            inputBox.style.setProperty('transition', 'none', 'important');
+            inputBox.style.setProperty('z-index', '99998', 'important');
+        };
 
-        document.addEventListener('mousemove', function(e) {
+        const onDrag = function(x, y) {
             if (!isDragging) return;
-            let x = e.clientX - offsetX;
-            let y = e.clientY - offsetY;
+            hasMoved = true;
+            
+            let newX = x - offsetX;
+            let newY = y - offsetY;
 
             const maxX = window.innerWidth - waifu.offsetWidth;
-            const maxY = window.innerHeight - waifu.offsetHeight - 80; // 给输入框留空间
-            x = Math.max(0, Math.min(x, maxX));
-            y = Math.max(0, Math.min(y, maxY));
+            const maxY = window.innerHeight - waifu.offsetHeight - 20;
+            newX = Math.max(0, Math.min(newX, maxX));
+            newY = Math.max(0, Math.min(newY, maxY));
 
-            waifu.style.left = x + 'px';
-            waifu.style.top = y + 'px';
-            waifu.style.right = 'auto';
-            waifu.style.bottom = 'auto';
-        });
+            waifu.style.setProperty('left', newX + 'px', 'important');
+            waifu.style.setProperty('top', newY + 'px', 'important');
+            waifu.style.setProperty('right', 'auto', 'important');
+            waifu.style.setProperty('bottom', 'auto', 'important');
+            
+            const inputNewX = newX + inputOffsetX;
+            const inputNewY = newY + inputOffsetY;
+            inputBox.style.setProperty('left', inputNewX + 'px', 'important');
+            inputBox.style.setProperty('top', inputNewY + 'px', 'important');
+            inputBox.style.setProperty('right', 'auto', 'important');
+            inputBox.style.setProperty('bottom', 'auto', 'important');
+        };
 
-        document.addEventListener('mouseup', function() {
+        const endDrag = function() {
             if (isDragging) {
                 isDragging = false;
-                waifu.style.transition = 'transform 0.3s ease';
+                waifu.style.transition = 'none';
+                inputBox.style.transition = 'none';
             }
-        });
+        };
+
+        window.addEventListener('mousedown', function(e) {
+            if (isPointInWaifu(e.clientX, e.clientY)) {
+                startDrag(e.clientX, e.clientY);
+            }
+        }, true);
+
+        window.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+                onDrag(e.clientX, e.clientY);
+            }
+        }, true);
+
+        window.addEventListener('mouseup', function(e) {
+            if (isDragging && hasMoved) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            endDrag();
+        }, true);
+
+        window.addEventListener('blur', endDrag);
+
+        waifu.style.cssText += '; user-select: none !important; -webkit-user-select: none !important;';
     }
 
     // ===================== 4. AI问答逻辑 =====================
@@ -282,28 +347,30 @@
 
     // ===================== 5. 页面初始化 =====================
     window.addEventListener('load', () => {
-        setTimeout(() => {
+        let checkCount = 0;
+        const checkWaifu = setInterval(() => {
             const waifu = document.getElementById('waifu');
-            if (!waifu) return;
+            if (waifu) {
+                clearInterval(checkWaifu);
+                
+                waifu.style.right = '20px';
+                waifu.style.bottom = '80px';
+                waifu.style.left = 'auto';
+                waifu.style.top = 'auto';
 
-            waifu.style.right = '20px';
-            waifu.style.bottom = '80px'; // 给下方输入框留空间
-            waifu.style.left = 'auto';
-            waifu.style.top = 'auto';
+                enableDrag();
 
-            enableDrag();
-
-            waifu.onclick = () => {
-                let randomText = dialogList[Math.floor(Math.random() * dialogList.length)];
-                showText(randomText);
-            };
-
-            setTimeout(() => {
-                let welcome = userIdentify === "teacher" ? "老师您好，工作顺利！" : "同学你好，好好学习哦！";
-                showText(welcome);
-            }, 500);
-
-        }, 2800);
+                setTimeout(() => {
+                    let welcome = userIdentify === "teacher" ? "老师您好，工作顺利！" : "同学你好，好好学习哦！";
+                    showText(welcome);
+                }, 500);
+            } else {
+                checkCount++;
+                if (checkCount > 50) {
+                    clearInterval(checkWaifu);
+                }
+            }
+        }, 200);
     });
 </script>
 
