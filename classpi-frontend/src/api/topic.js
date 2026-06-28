@@ -3,7 +3,7 @@ import request from '@/utils/request'
 // 获取课程话题列表
 export function getTopicList(courseId) {
     return request({
-        url: `/topic/course/${courseId}`,  // 改这里
+        url: `/topic/course/${courseId}`,
         method: 'get'
     })
 }
@@ -11,22 +11,31 @@ export function getTopicList(courseId) {
 // 发布话题
 export function publishTopic(data) {
     return request({
-        url: '/topic/create',  // 改这里
+        url: '/topic/create',
         method: 'post',
-        data
+        data: {
+            courseId: Number(data.courseId),
+            courseNo: String(data.courseNo || ''),
+            title: String(data.title || ''),
+            content: String(data.content || ''),
+            authorId: String(data.authorId || ''),
+            authorName: String(data.authorName || ''),
+            authorType: Number(data.authorType || 2),
+            isAnonymous: Number(data.isAnonymous || 0)
+        }
     })
 }
 
 // 编辑话题
 export function editTopic(data) {
     return request({
-        url: `/topic/${data.id}`,  // 改这里
+        url: `/topic/${data.id}`,
         method: 'put',
         params: {
-            title: data.title,
-            content: data.content,
-            authorId: data.authorId,
-            identity: data.identity
+            title: String(data.title || ''),
+            content: String(data.content || ''),
+            authorId: String(data.authorId || ''),
+            identity: String(data.identity || 'student')
         }
     })
 }
@@ -34,40 +43,49 @@ export function editTopic(data) {
 // 删除话题
 export function deleteTopic(topicId, authorId, identity) {
     return request({
-        url: `/topic/${topicId}`,  // 改这里
+        url: `/topic/${topicId}`,
         method: 'delete',
-        params: { authorId, identity }
+        params: {
+            authorId: String(authorId || ''),
+            identity: String(identity || 'student')
+        }
     })
 }
 
-// 置顶
+// 置顶/取消置顶
 export function setTopicTop(topicId, isTop) {
     const url = isTop === 1 ? `/topic/${topicId}/top` : `/topic/${topicId}/cancel-top`
     return request({
-        url: url,  // 改这里
+        url: url,
         method: 'put'
     })
 }
 
 // 发布评论
 export function addComment(data) {
+    const requestData = {
+        topicId: Number(data.topicId),
+        content: String(data.content || ''),
+        authorId: String(data.authorId || ''),
+        authorName: String(data.authorName || ''),
+        authorType: Number(data.authorType || 2),
+        isAnonymous: Number(data.isAnonymous || 0)
+    }
+
+    console.log('========== 发表评论 ==========')
+    console.log('请求数据:', requestData)
+
     return request({
-        url: `/topic/${data.topicId}/reply`,  // 改这里
+        url: `/topic/${data.topicId}/reply`,
         method: 'post',
-        data: {
-            content: data.content,
-            authorId: data.authorId,
-            authorName: data.authorName,
-            authorType: data.authorType,
-            isAnonymous: data.isAnonymous
-        }
+        data: requestData
     })
 }
 
 // 获取话题评论
 export function getCommentList(topicId) {
     return request({
-        url: `/topic/${topicId}/replies`,  // 改这里
+        url: `/topic/${topicId}/replies`,
         method: 'get'
     })
 }
@@ -75,7 +93,7 @@ export function getCommentList(topicId) {
 // 开关课程讨论
 export function switchDiscuss(courseId, allowDiscuss) {
     return request({
-        url: `/topic/switch/${courseId}`,  // 改这里
+        url: `/topic/switch/${courseId}`,
         method: 'put',
         params: { allowDiscuss }
     })
