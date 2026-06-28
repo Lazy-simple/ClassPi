@@ -54,10 +54,25 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem("token");
   const userStore = useUserStore();
-  // 先加载本地存储的用户信息
-  userStore.initFromStorage();
-  // 正确取身份：从userInfo拿identity，不是直接.userStore.identity
-  const identity = userStore.userInfo?.identity;
+  
+  // 获取身份：优先从store获取，其次从localStorage解析
+  let identity = userStore.userInfo?.identity;
+  if (!identity) {
+    const storedInfo = localStorage.getItem('userInfo');
+    if (storedInfo) {
+      try {
+        const userInfo = JSON.parse(storedInfo);
+        identity = userInfo.identity;
+      } catch (e) {
+        console.error('解析用户信息失败', e);
+      }
+    }
+  }
+  
+  console.log('=== 路由守卫 ===');
+  console.log('token:', token ? '存在' : '不存在');
+  console.log('identity:', identity);
+  console.log('目标路径:', to.path);
 
   // 1. 无token跳登录
   if (!token) {

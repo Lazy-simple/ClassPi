@@ -3,8 +3,8 @@
   <el-container style="height: 100vh; background-color: #f3f4f6;">
 
     <!-- 1. 左侧侧边栏 -->
-    <!-- 根据用户角色，动态加载不同的侧边栏组件 -->
-    <el-aside v-if="userStore.userInfo?.role === 1" width="220px" style="background-color: #304156;">
+    <!-- 根据用户身份，动态加载不同的侧边栏组件 -->
+    <el-aside v-if="userStore.userInfo?.identity === 'teacher'" width="220px" style="background-color: #304156;">
       <SidebarTeacher />
     </el-aside>
     <el-aside v-else width="220px" style="background-color: #304156;">

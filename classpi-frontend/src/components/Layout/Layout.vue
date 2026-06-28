@@ -50,12 +50,17 @@ const userStore = useUserStore()
 // 2. 定义计算属性：根据角色返回对应的组件对象
 const currentSidebar = computed(() => {
   const identity = userStore.userInfo?.identity;
-  if (identity === 'teacher') {
+  console.log('=== Layout.vue 调试信息 ===')
+  console.log('userStore:', userStore)
+  console.log('userStore.userInfo:', userStore.userInfo)
+  console.log('identity:', identity)
+  
+  if (identity === 'teacher' || identity === 'Teacher') {
     return SidebarTeacher
-  } else if (identity === 'student') {
+  } else if (identity === 'student' || identity === 'Student') {
     return SidebarStudent
   } else {
-    // 未知身份默认空/登录页
+    console.warn('⚠️ 身份未知:', identity)
     return null
   }
 })

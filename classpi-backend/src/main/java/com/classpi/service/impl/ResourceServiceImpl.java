@@ -12,6 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Date;
 import java.util.List;
 
@@ -75,7 +80,7 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     @Transactional
     public Result createFolder(Integer courseId, String courseNo, String folderName,
-                               String parentId, String uploaderId, String uploaderName) {
+            String parentId, String uploaderId, String uploaderName) {
         logger.info("========== createFolder ==========");
         logger.info("参数: courseId={}, courseNo={}, folderName={}, parentId={}, uploaderId={}, uploaderName={}",
                 courseId, courseNo, folderName, parentId, uploaderId, uploaderName);
@@ -120,7 +125,7 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     @Transactional
     public Result addLinkResource(Integer courseId, String courseNo, String name, String url,
-                                  String parentId, String uploaderId, String uploaderName) {
+            String parentId, String uploaderId, String uploaderName) {
         logger.info("========== addLinkResource ==========");
         logger.info("参数: courseId={}, courseNo={}, name={}, url={}, parentId={}, uploaderId={}, uploaderName={}",
                 courseId, courseNo, name, url, parentId, uploaderId, uploaderName);
@@ -187,9 +192,28 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
+    public Resource getResourceById(Integer id) {
+        logger.info("========== getResourceById ==========, id={}", id);
+        return resourceMapper.selectById(id);
+    }
+
+    @Override
+    public byte[] getFileContent(String filePath) throws IOException {
+        logger.info("========== getFileContent ==========, filePath={}", filePath);
+
+        File file = new File(filePath);
+        if (!file.exists()) {
+            logger.error("文件不存在: {}", filePath);
+            throw new IOException("文件不存在: " + filePath);
+        }
+
+        return Files.readAllBytes(file.toPath());
+    }
+
+    @Override
     @Transactional
     public Result uploadAttachment(Integer courseId, String courseNo, MultipartFile file,
-                                   String parentId, String uploaderId, String uploaderName) {
+            String parentId, String uploaderId, String uploaderName) {
         logger.info("========== uploadAttachment ==========");
         logger.info("参数: courseId={}, courseNo={}, fileName={}, parentId={}, uploaderId={}, uploaderName={}",
                 courseId, courseNo, file.getOriginalFilename(), parentId, uploaderId, uploaderName);

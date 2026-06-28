@@ -188,6 +188,10 @@ const handleLogin = async () => {
       ElMessage.success('登录成功');
 
       // 存储数据
+      console.log('=== 登录成功，存储用户信息 ===');
+      console.log('userInfo:', userInfo);
+      console.log('identity:', userInfo.identity);
+      
       userStore.setUser({ token, userInfo });
       localStorage.setItem('token', token);
       localStorage.setItem('userId', userInfo.id || userInfo.userId)
@@ -195,6 +199,10 @@ const handleLogin = async () => {
 
       // 跳转
       const identity = userInfo.identity;
+      console.log('=== 准备跳转 ===');
+      console.log('身份:', identity);
+      console.log('目标路由:', identity === 'teacher' ? '/main/dashboard' : '/main/student-course');
+      
       if (identity === 'teacher') {
         router.push('/main/dashboard');
       } else if (identity === 'student') {

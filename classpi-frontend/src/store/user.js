@@ -1,11 +1,22 @@
 import { defineStore } from 'pinia'
 
 export const useUserStore = defineStore('user', {
-  state: () => ({
-    // 初始化时统一读取本地存储，同时处理 userInfo
-    token: localStorage.getItem('token') || sessionStorage.getItem('token') || '',
-    userInfo: null
-  }),
+  state: () => {
+    const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    let storedUserInfo = null;
+    try {
+      const storedInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+      if (storedInfo) {
+        storedUserInfo = JSON.parse(storedInfo);
+      }
+    } catch (e) {
+      console.error('解析用户信息失败', e);
+    }
+    return {
+      token: storedToken,
+      userInfo: storedUserInfo
+    };
+  },
 
   getters: {
     isLoggedIn: (state) => !!state.token,
