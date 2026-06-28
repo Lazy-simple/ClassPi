@@ -150,13 +150,26 @@ public class CourseServiceImpl implements CourseService {
         QueryWrapper<StudentCourse> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("student_id", studentId);
         queryWrapper.eq("course_id", courseId);
-        StudentCourse existSC = studentCourseMapper.selectOne(queryWrapper);
-        if (existSC != null) {
-            if (existSC.getStatus() == 1) {
+        queryWrapper.eq("status", 1);  // 只查已选状态
+
+        // 用 selectList 代替 selectOne
+        List<StudentCourse> existSCList = studentCourseMapper.selectList(queryWrapper);
+
+        // 检查是否有已选的记录
+        for (StudentCourse sc : existSCList) {
+            if (sc.getStatus() == 1) {
                 return Result.error("您已选该课程");
-            } else if (existSC.getStatus() == 0) {
-                return Result.error("您的选课申请正在审核中");
             }
+        }
+
+        // 检查是否有审核中的记录
+        QueryWrapper<StudentCourse> pendingWrapper = new QueryWrapper<>();
+        pendingWrapper.eq("student_id", studentId);
+        pendingWrapper.eq("course_id", courseId);
+        pendingWrapper.eq("status", 0);
+        List<StudentCourse> pendingList = studentCourseMapper.selectList(pendingWrapper);
+        if (!pendingList.isEmpty()) {
+            return Result.error("您的选课申请正在审核中");
         }
 
         StudentCourse studentCourse = new StudentCourse();
