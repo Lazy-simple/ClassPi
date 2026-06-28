@@ -1,24 +1,18 @@
 <template>
   <div class="layout-container">
-    <!-- 左侧侧边栏 -->
-    <aside class="sidebar">
-      <!-- Logo区域 -->
+    <!-- 左侧侧边栏（仅教师显示） -->
+    <aside v-if="isTeacher" class="sidebar">
       <div class="logo-box">
-        <!-- 请确保你的 assets 路径正确，或者暂时注释掉 img 标签防止报错 -->
         <img src="@/assets/image/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'" />
         <span class="logo-text">课堂派 ClassPi</span>
       </div>
-
-      <!-- 菜单组件插槽 -->
       <div class="menu-area">
-        <!-- ⚠️ 核心修改点：使用动态组件 -->
-        <!-- 根据用户角色 role 的值，动态加载对应的菜单组件 -->
         <component :is="currentSidebar" />
       </div>
     </aside>
 
     <!-- 右侧主体内容 -->
-    <div class="main-wrapper">
+    <div :class="['main-wrapper', { 'full-width': !isTeacher }]">
       <!-- 顶部导航栏 -->
       <header class="top-header">
         <Header />
@@ -47,22 +41,17 @@ import SidebarStudent from './SidebarStudent.vue'
 
 const userStore = useUserStore()
 
-// 2. 定义计算属性：根据角色返回对应的组件对象
+const isTeacher = computed(() => {
+  const identity = userStore.userInfo?.identity;
+  return identity === 'teacher' || identity === 'Teacher';
+})
+
 const currentSidebar = computed(() => {
   const identity = userStore.userInfo?.identity;
-  console.log('=== Layout.vue 调试信息 ===')
-  console.log('userStore:', userStore)
-  console.log('userStore.userInfo:', userStore.userInfo)
-  console.log('identity:', identity)
-  
   if (identity === 'teacher' || identity === 'Teacher') {
     return SidebarTeacher
-  } else if (identity === 'student' || identity === 'Student') {
-    return SidebarStudent
-  } else {
-    console.warn('⚠️ 身份未知:', identity)
-    return null
   }
+  return null
 })
 </script>
 
@@ -125,6 +114,10 @@ const currentSidebar = computed(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.main-wrapper.full-width {
+  width: 100%;
 }
 
 .top-header {

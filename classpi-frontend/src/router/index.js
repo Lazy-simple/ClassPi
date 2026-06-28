@@ -110,7 +110,6 @@ router.beforeEach((to, from, next) => {
     return next('/login');
   }
 
-  // 页面权限分组不变
   const teacherPages = [
     '/main/dashboard',
     '/main/teacher-course',
@@ -126,13 +125,22 @@ router.beforeEach((to, from, next) => {
     '/main/student-topic'
   ];
 
+  const isStudentPage = (path) => {
+    if (studentPages.includes(path)) return true;
+    if (path.startsWith('/main/course-detail/')) return true;
+    return false;
+  };
+  const isTeacherPage = (path) => {
+    return teacherPages.includes(path);
+  };
+
   // 教师不能进学生页面
-  if (identity === 'teacher' && studentPages.includes(to.path)) {
+  if (identity === 'teacher' && isStudentPage(to.path)) {
     ElMessage.error('教师无权限访问学生页面');
     return next('/main/dashboard');
   }
   // 学生不能进教师页面
-  if (identity === 'student' && teacherPages.includes(to.path)) {
+  if (identity === 'student' && isTeacherPage(to.path)) {
     ElMessage.error('学生无权限访问教师后台');
     return next('/main/student-course');
   }

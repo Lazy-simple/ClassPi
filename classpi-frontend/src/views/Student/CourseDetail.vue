@@ -1,23 +1,26 @@
 <template>
   <div class="course-detail-page">
+    <div class="breadcrumb">
+      <el-breadcrumb separator="/">
+        <el-breadcrumb-item :to="{ path: '/main/student-course' }">我的课程</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ courseInfo.courseName || courseInfo.name || '课程详情' }}</el-breadcrumb-item>
+      </el-breadcrumb>
+    </div>
+
     <div class="course-header">
-      <div class="cover-bg" :style="{ backgroundImage: `url(${courseInfo.coverUrl || defaultCover})` }"></div>
+      <div class="cover-bg" :style="{ backgroundImage: `url(${defaultCover})` }"></div>
       <div class="cover-overlay"></div>
       <div class="course-info">
-        <h1 class="course-title">{{ courseInfo.name || '课程名称' }}</h1>
-        <p class="course-subtitle">{{ courseInfo.className || '班级名称' }}</p>
+        <h1 class="course-title">{{ courseInfo.courseName || courseInfo.name || '课程名称' }}</h1>
+        <p class="course-subtitle">{{ courseInfo.courseNo || '课程编号' }}</p>
         <div class="course-meta">
           <span class="meta-item">
             <el-icon><User /></el-icon>
             {{ courseInfo.teacherName || '未知教师' }}
           </span>
           <span class="meta-item">
-            <el-icon><Users /></el-icon>
-            {{ courseInfo.studentCount || 0 }}人已加入
-          </span>
-          <span class="meta-item">
-            <el-icon><CreditCard /></el-icon>
-            加课码: {{ courseInfo.courseNo || '--' }}
+            <el-icon><Collection /></el-icon>
+            {{ courseInfo.credit || 0 }} 学分
           </span>
         </div>
       </div>
@@ -28,7 +31,6 @@
         <div class="tab-item" :class="{ active: activeTab === 'homework' }" @click="switchTab('homework')">
           <el-icon><DocumentChecked /></el-icon>
           <span>作业</span>
-          <el-badge v-if="pendingHomeworkCount > 0" :value="pendingHomeworkCount" class="badge" />
         </div>
         <div class="tab-item" :class="{ active: activeTab === 'resource' }" @click="switchTab('resource')">
           <el-icon><Document /></el-icon>
@@ -38,10 +40,6 @@
           <el-icon><ChatDotRound /></el-icon>
           <span>讨论</span>
         </div>
-        <div class="tab-item" :class="{ active: activeTab === 'score' }" @click="switchTab('score')">
-          <el-icon><TrendCharts /></el-icon>
-          <span>成绩</span>
-        </div>
       </div>
     </div>
 
@@ -50,14 +48,17 @@
         <div class="section-header">
           <h3>📋 作业列表</h3>
         </div>
-        <div v-if="homeworkList.length === 0" class="empty-state">
+        <div v-if="loading" class="loading-state">
+          <span>加载中...</span>
+        </div>
+        <div v-else-if="homeworkList.length === 0" class="empty-state">
           <el-empty description="暂无作业" />
         </div>
         <div v-else class="homework-list">
           <div class="homework-card" v-for="hw in homeworkList" :key="hw.id">
             <div class="hw-header">
               <h4 class="hw-title">{{ hw.title }}</h4>
-              <el-tag :type="getHomeworkStatus(hw).type" :effect="getHomeworkStatus(hw).effect">
+              <el-tag :type="getHomeworkStatus(hw).type">
                 {{ getHomeworkStatus(hw).text }}
               </el-tag>
             </div>
@@ -76,20 +77,12 @@
                 <el-icon><UploadFilled /></el-icon> 提交作业
               </el-button>
               <el-button
-                  v-else-if="getHomeworkStatus(hw).text === '已提交'"
+                  v-else
                   type="success"
                   size="small"
                   disabled
               >
-                <el-icon><Check /></el-icon> 已提交
-              </el-button>
-              <el-button
-                  v-else-if="getHomeworkStatus(hw).text === '已批改'"
-                  type="info"
-                  size="small"
-                  @click="viewScore(hw)"
-              >
-                <el-icon><Eye /></el-icon> 查看成绩
+                <el-icon><Check /></el-icon> {{ getHomeworkStatus(hw).text }}
               </el-button>
             </div>
           </div>
@@ -100,7 +93,10 @@
         <div class="section-header">
           <h3>📚 课程资料</h3>
         </div>
-        <div v-if="resourceList.length === 0" class="empty-state">
+        <div v-if="loading" class="loading-state">
+          <span>加载中...</span>
+        </div>
+        <div v-else-if="resourceList.length === 0" class="empty-state">
           <el-empty description="暂无资料" />
         </div>
         <div v-else class="resource-list">
@@ -108,14 +104,12 @@
             <div class="resource-icon-wrap">
               <el-icon :size="32">
                 <Folder v-if="item.isFolder === 1" />
-                <Document v-else-if="item.type === 'file'" />
-                <Link v-else-if="item.type === 'link'" />
-                <DocumentCopy v-else />
+                <Document v-else />
               </el-icon>
             </div>
             <div class="resource-info">
               <h4>{{ item.folderName || item.name }}</h4>
-              <p>{{ item.uploaderName || '未知上传者' }} · {{ item.createTime || '--' }}</p>
+              <p>{{ item.uploaderName || '未知上传者' }}</p>
             </div>
             <div class="resource-actions">
               <span v-if="item.fileSize" class="file-size">{{ formatFileSize(item.fileSize) }}</span>
@@ -125,7 +119,7 @@
                   size="small"
                   @click="downloadResource(item)"
               >
-                <el-icon><Download /></el-icon> 下载
+                <el-icon><Document /></el-icon> 下载
               </el-button>
               <el-button
                   v-if="item.type === 'link'"
@@ -143,15 +137,18 @@
       <div v-else-if="activeTab === 'topic'" class="topic-section">
         <div class="section-header">
           <h3>💬 课程讨论</h3>
-          <el-button type="primary" size="small" @click="openCreateTopicDialog">
+          <el-button type="primary" size="small" @click="topicDialogVisible = true">
             <el-icon><Plus /></el-icon> 发起讨论
           </el-button>
         </div>
-        <div v-if="topicList.length === 0" class="empty-state">
+        <div v-if="loading" class="loading-state">
+          <span>加载中...</span>
+        </div>
+        <div v-else-if="topicList.length === 0" class="empty-state">
           <el-empty description="暂无讨论" />
         </div>
         <div v-else class="topic-list">
-          <div class="topic-card" v-for="topic in topicList" :key="topic.id" @click="openTopicDetail(topic)">
+          <div class="topic-card" v-for="topic in topicList" :key="topic.id">
             <div class="topic-header">
               <h4 class="topic-title">{{ topic.title }}</h4>
               <span class="topic-author">{{ topic.authorName || '匿名' }}</span>
@@ -160,29 +157,7 @@
             <div class="topic-footer">
               <span class="topic-time">{{ topic.createTime || '--' }}</span>
               <span class="topic-replies">
-                <el-icon><ChatDotSquare /></el-icon> {{ topic.replyCount || 0 }} 回复
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-else-if="activeTab === 'score'" class="score-section">
-        <div class="section-header">
-          <h3>📊 我的成绩</h3>
-        </div>
-        <div v-if="scoreList.length === 0" class="empty-state">
-          <el-empty description="暂无成绩记录" />
-        </div>
-        <div v-else class="score-list">
-          <div class="score-card" v-for="score in scoreList" :key="score.id">
-            <div class="score-info">
-              <h4>{{ score.homeworkTitle || '作业' }}</h4>
-              <p>{{ score.submitTime || '--' }}提交</p>
-            </div>
-            <div class="score-value">
-              <span :class="{ 'high': score.score >= 80, 'medium': score.score >= 60 && score.score < 80, 'low': score.score < 60 }">
-                {{ score.score || '--' }}
+                <el-icon><ChatDotRound /></el-icon> {{ topic.replyCount || 0 }} 回复
               </span>
             </div>
           </div>
@@ -204,63 +179,37 @@
         <el-button type="primary" :loading="topicSubmitting" @click="submitTopic">提交</el-button>
       </template>
     </el-dialog>
-
-    <el-dialog v-model="topicDetailVisible" title="讨论详情" width="700px">
-      <div v-if="currentTopic" class="topic-detail">
-        <h3>{{ currentTopic.title }}</h3>
-        <p class="topic-meta">{{ currentTopic.authorName || '匿名' }} · {{ currentTopic.createTime || '--' }}</p>
-        <div class="topic-body">{{ currentTopic.content }}</div>
-        <div class="reply-section">
-          <h4>回复 ({{ currentTopic.replies?.length || 0 }})</h4>
-          <div v-if="currentTopic.replies?.length === 0" class="no-replies">暂无回复</div>
-          <div v-else class="reply-list">
-            <div class="reply-item" v-for="reply in currentTopic.replies" :key="reply.id">
-              <span class="reply-author">{{ reply.authorName || '匿名' }}</span>
-              <span class="reply-content">{{ reply.content }}</span>
-              <span class="reply-time">{{ reply.createTime || '--' }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <el-input v-model="replyContent" placeholder="输入回复内容" @keyup.enter="submitReply" />
-        <el-button type="primary" @click="submitReply">回复</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  User, Users, CreditCard, DocumentChecked, Document, ChatDotRound,
-  TrendCharts, Clock, UploadFilled, Check, Eye, Download, Link,
-  Folder, DocumentCopy, Plus, ChatDotSquare
+  User, Collection, DocumentChecked, Document, ChatDotRound,
+  Clock, UploadFilled, Check, Link, Folder, Plus
 } from '@element-plus/icons-vue'
-import { getCourseById, getStudentCourses } from '@/api/course'
+import { getStudentCourses } from '@/api/course'
 import { getHomeworkByCourse } from '@/api/homework'
-import { getResourceTree } from '@/api/resource'
-import { getTopicList, createTopic, getTopicDetail, createTopicReply } from '@/api/topic'
-import { getStudentScores } from '@/api/statistics'
+import { getResourceTree, downloadResource as downloadRes } from '@/api/resource'
+import { getTopicList, publishTopic } from '@/api/topic'
+import { useUserStore } from '@/store/user'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const courseId = ref(Number(route.params.courseId))
 const activeTab = ref('homework')
+const loading = ref(false)
 
 const courseInfo = ref({})
 const homeworkList = ref([])
 const resourceList = ref([])
 const topicList = ref([])
-const scoreList = ref([])
 
 const topicDialogVisible = ref(false)
-const topicDetailVisible = ref(false)
 const topicSubmitting = ref(false)
-const currentTopic = ref(null)
-const replyContent = ref('')
 
 const topicForm = ref({
   title: '',
@@ -269,23 +218,22 @@ const topicForm = ref({
 
 const defaultCover = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=education%20course%20abstract%20banner%20modern%20design&image_size=landscape_16_9'
 
-const pendingHomeworkCount = computed(() => {
-  return homeworkList.value.filter(hw => !hw.submitted).length
-})
-
 const switchTab = (tab) => {
   activeTab.value = tab
   if (tab === 'homework') loadHomework()
   else if (tab === 'resource') loadResource()
   else if (tab === 'topic') loadTopic()
-  else if (tab === 'score') loadScore()
 }
 
 const loadCourseInfo = async () => {
   try {
-    const res = await getCourseById(courseId.value)
-    if (res.code === 200) {
-      courseInfo.value = res.data || {}
+    const studentId = userStore.userInfo?.id || localStorage.getItem('userId')
+    const res = await getStudentCourses(studentId)
+    if (res.code === 200 && res.data) {
+      const course = res.data.find(c => (c.courseId || c.id) === courseId.value)
+      if (course) {
+        courseInfo.value = course
+      }
     }
   } catch (error) {
     console.error('加载课程信息失败:', error)
@@ -293,6 +241,7 @@ const loadCourseInfo = async () => {
 }
 
 const loadHomework = async () => {
+  loading.value = true
   try {
     const res = await getHomeworkByCourse(courseId.value)
     if (res.code === 200) {
@@ -300,10 +249,13 @@ const loadHomework = async () => {
     }
   } catch (error) {
     console.error('加载作业失败:', error)
+  } finally {
+    loading.value = false
   }
 }
 
 const loadResource = async () => {
+  loading.value = true
   try {
     const res = await getResourceTree(courseId.value)
     if (res.code === 200) {
@@ -311,10 +263,13 @@ const loadResource = async () => {
     }
   } catch (error) {
     console.error('加载资料失败:', error)
+  } finally {
+    loading.value = false
   }
 }
 
 const loadTopic = async () => {
+  loading.value = true
   try {
     const res = await getTopicList(courseId.value)
     if (res.code === 200) {
@@ -322,28 +277,16 @@ const loadTopic = async () => {
     }
   } catch (error) {
     console.error('加载讨论失败:', error)
-  }
-}
-
-const loadScore = async () => {
-  try {
-    const userId = localStorage.getItem('userId')
-    const res = await getStudentScores(userId)
-    if (res.code === 200) {
-      scoreList.value = res.data || []
-    }
-  } catch (error) {
-    console.error('加载成绩失败:', error)
+  } finally {
+    loading.value = false
   }
 }
 
 const getHomeworkStatus = (hw) => {
-  if (hw.submitted && hw.score !== undefined && hw.score !== null) {
-    return { text: '已批改', type: 'success', effect: 'dark' }
-  } else if (hw.submitted) {
-    return { text: '已提交', type: 'info', effect: 'dark' }
+  if (hw.submitted) {
+    return { text: '已提交', type: 'success' }
   }
-  return { text: '未提交', type: 'warning', effect: '' }
+  return { text: '未提交', type: 'warning' }
 }
 
 const goToSubmit = (homeworkId) => {
@@ -352,15 +295,12 @@ const goToSubmit = (homeworkId) => {
   router.push('/main/submit-homework')
 }
 
-const viewScore = (hw) => {
-  ElMessage.info(`作业: ${hw.title}，成绩: ${hw.score || '--'}`)
-}
-
 const downloadResource = (item) => {
   if (item.type === 'link') {
     window.open(item.path)
     return
   }
+  downloadRes(item.id)
 }
 
 const openLink = (item) => {
@@ -378,11 +318,6 @@ const formatFileSize = (bytes) => {
   return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i]
 }
 
-const openCreateTopicDialog = () => {
-  topicForm.value = { title: '', content: '' }
-  topicDialogVisible.value = true
-}
-
 const submitTopic = async () => {
   if (!topicForm.value.title || !topicForm.value.content) {
     ElMessage.warning('请填写完整内容')
@@ -390,56 +325,29 @@ const submitTopic = async () => {
   }
   topicSubmitting.value = true
   try {
-    const res = await createTopic({
+    const userId = userStore.userInfo?.id || localStorage.getItem('userId')
+    const userName = userStore.userInfo?.username || userStore.userInfo?.name || localStorage.getItem('userName') || '学生'
+    const res = await publishTopic({
       courseId: courseId.value,
       title: topicForm.value.title,
-      content: topicForm.value.content
+      content: topicForm.value.content,
+      authorId: userId,
+      authorName: userName,
+      authorType: 2
     })
     if (res.code === 200) {
       ElMessage.success('发布成功')
       topicDialogVisible.value = false
+      topicForm.value = { title: '', content: '' }
       loadTopic()
     } else {
       ElMessage.error(res.msg || '发布失败')
     }
   } catch (error) {
+    console.error('发布失败:', error)
     ElMessage.error('发布失败')
   } finally {
     topicSubmitting.value = false
-  }
-}
-
-const openTopicDetail = async (topic) => {
-  try {
-    const res = await getTopicDetail(topic.id)
-    if (res.code === 200) {
-      currentTopic.value = res.data
-    }
-  } catch (error) {
-    currentTopic.value = topic
-  }
-  topicDetailVisible.value = true
-}
-
-const submitReply = async () => {
-  if (!replyContent.value.trim()) {
-    ElMessage.warning('请输入回复内容')
-    return
-  }
-  try {
-    const res = await createTopicReply({
-      topicId: currentTopic.value.id,
-      content: replyContent.value
-    })
-    if (res.code === 200) {
-      ElMessage.success('回复成功')
-      replyContent.value = ''
-      openTopicDetail(currentTopic.value)
-    } else {
-      ElMessage.error(res.msg || '回复失败')
-    }
-  } catch (error) {
-    ElMessage.error('回复失败')
   }
 }
 
@@ -455,9 +363,15 @@ onMounted(() => {
   background-color: #f5f7fa;
 }
 
+.breadcrumb {
+  padding: 16px 40px;
+  background: white;
+  border-bottom: 1px solid #e4e7ed;
+}
+
 .course-header {
   position: relative;
-  height: 280px;
+  height: 220px;
   overflow: hidden;
 }
 
@@ -477,31 +391,31 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6));
+  background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
 }
 
 .course-info {
   position: relative;
   z-index: 1;
-  padding: 40px;
+  padding: 30px 40px;
   color: white;
 }
 
 .course-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: bold;
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
 }
 
 .course-subtitle {
-  font-size: 16px;
+  font-size: 14px;
   opacity: 0.9;
-  margin: 0 0 20px 0;
+  margin: 0 0 16px 0;
 }
 
 .course-meta {
   display: flex;
-  gap: 30px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
@@ -532,7 +446,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 24px;
+  padding: 14px 24px;
   font-size: 15px;
   color: #606266;
   cursor: pointer;
@@ -560,10 +474,6 @@ onMounted(() => {
   background-color: #4f46e5;
 }
 
-.badge {
-  margin-left: 4px;
-}
-
 .tab-content {
   padding: 20px 40px;
 }
@@ -581,13 +491,25 @@ onMounted(() => {
   color: #303133;
 }
 
+.loading-state,
 .empty-state {
   background: white;
   padding: 40px;
   border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #909399;
 }
 
-.homework-list, .resource-list, .topic-list, .score-list {
+.loading-state .el-icon {
+  font-size: 32px;
+  color: #4f46e5;
+}
+
+.homework-list, .resource-list, .topic-list {
   display: grid;
   gap: 16px;
 }
@@ -750,110 +672,5 @@ onMounted(() => {
   gap: 4px;
   font-size: 13px;
   color: #606266;
-}
-
-.score-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-}
-
-.score-info h4 {
-  margin: 0 0 4px 0;
-  font-size: 15px;
-  color: #303133;
-}
-
-.score-info p {
-  margin: 0;
-  font-size: 13px;
-  color: #909399;
-}
-
-.score-value span {
-  font-size: 28px;
-  font-weight: bold;
-}
-
-.score-value .high {
-  color: #67c23a;
-}
-
-.score-value .medium {
-  color: #e6a23c;
-}
-
-.score-value .low {
-  color: #f56c6c;
-}
-
-.topic-detail {
-  padding: 10px 0;
-}
-
-.topic-detail h3 {
-  margin: 0 0 10px 0;
-  font-size: 18px;
-}
-
-.topic-meta {
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 16px;
-}
-
-.topic-body {
-  font-size: 15px;
-  line-height: 1.8;
-  color: #303133;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.reply-section h4 {
-  margin: 0 0 12px 0;
-  font-size: 15px;
-}
-
-.no-replies {
-  text-align: center;
-  color: #909399;
-  padding: 20px;
-}
-
-.reply-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.reply-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-  background-color: #f5f7fa;
-  border-radius: 8px;
-}
-
-.reply-author {
-  font-size: 13px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.reply-content {
-  font-size: 14px;
-  color: #606266;
-}
-
-.reply-time {
-  font-size: 12px;
-  color: #909399;
 }
 </style>
