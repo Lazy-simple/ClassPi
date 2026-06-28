@@ -22,15 +22,26 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { getScoreList } from '@/api/homework';
+import { useUserStore } from '@/store/user';
 
 const loading = ref(false);
 const scoreList = ref([]);
+const userStore = useUserStore();
 
 const loadScore = async () => {
   loading.value = true;
   try {
-    const res = await getScoreList({});
-    if (res.code === 200) scoreList.value = res.data; // 修复了原代码中 score.value 的 bug
+    const teacherId = userStore.userInfo?.id;
+    console.log('=== 加载成绩列表 ===');
+    console.log('teacherId:', teacherId);
+    const res = await getScoreList({ teacherId, page: 1, pageSize: 10 });
+    console.log('响应数据:', res);
+    if (res.code === 200) {
+      scoreList.value = res.data?.records || [];
+    }
+  } catch (error) {
+    console.error('加载成绩失败:', error);
+    scoreList.value = [];
   } finally {
     loading.value = false;
   }
