@@ -4,7 +4,29 @@
       <template #header>
         <div class="card-header">
           <span>📝 作业批阅列表</span>
-          <el-input placeholder="搜索学生姓名" prefix-icon="Search" style="width: 200px;" v-model="searchKeyword" @input="filterList" />
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <!-- 新增：选择作业下拉框 -->
+            <el-select
+                v-model="selectedHomeworkId"
+                placeholder="请选择作业"
+                style="width:250px;"
+                @change="loadSubmissions"
+            >
+              <el-option
+                  v-for="hw in homeworkList"
+                  :key="hw.id"
+                  :label="hw.title"
+                  :value="hw.id"
+              />
+            </el-select>
+            <el-input
+                placeholder="搜索学生姓名"
+                prefix-icon="Search"
+                style="width: 200px;"
+                v-model="searchKeyword"
+                @input="filterList"
+            />
+          </div>
         </div>
       </template>
 
@@ -120,14 +142,16 @@
 </template>
 
 <script setup>
+import { useUserStore } from '@/store/user'
 import { ref, computed, onMounted } from 'vue'
 import { aiEvaluate } from '@/api/ai'
 import AiComment from '@/components/AiComment.vue'
 import { ElMessage } from 'element-plus'
-import { getHomeworkSubmissions, checkHomework } from '@/api/homework'
+import { getHomeworkSubmissions, checkHomework, getTeacherHomeworkList } from '@/api/homework'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+const userStore = useUserStore()
 const listLoading = ref(false)
 const correctLoading = ref(false)
 const dialogVisible = ref(false)
@@ -138,6 +162,10 @@ const searchKeyword = ref('')
 const tableData = ref([])
 const detailData = ref({})
 const currentAiRow = ref(null)
+
+// ========== 新增：作业列表 ==========
+const homeworkList = ref([])
+const selectedHomeworkId = ref(null)
 
 // 批阅表单
 const correctForm = ref({
@@ -150,6 +178,26 @@ const correctForm = ref({
   correctionContent: ''
 })
 
+// ========== 新增：加载教师的所有作业 ==========
+const loadHomeworkList = async () => {
+  try {
+    const teacherId = userStore.userInfo?.id
+    const res = await getTeacherHomeworkList(teacherId)
+    if (res.code === 200) {
+      homeworkList.value = res.data || []
+      if (homeworkList.value.length > 0) {
+        selectedHomeworkId.value = homeworkList.value[0].id
+        await loadSubmissions()
+      } else {
+        ElMessage.info('暂无已发布的作业')
+      }
+    }
+  } catch (error) {
+    console.error('加载作业列表失败:', error)
+    ElMessage.error('加载作业列表失败')
+  }
+}
+
 // 过滤后的数据
 const filteredTableData = computed(() => {
   if (!searchKeyword.value) return tableData.value
@@ -159,12 +207,17 @@ const filteredTableData = computed(() => {
 })
 
 // 加载提交记录
+// 加载提交记录
 const loadSubmissions = async () => {
-  const homeworkId = route.query.homeworkId || 1
+  // ✅ 用选中的作业ID，而不是 route.query
+  if (!selectedHomeworkId.value) {
+    ElMessage.warning('请选择作业')
+    return
+  }
 
   listLoading.value = true
   try {
-    const res = await getHomeworkSubmissions(homeworkId)
+    const res = await getHomeworkSubmissions(selectedHomeworkId.value)  // 改这里！
     if (res.code === 200) {
       tableData.value = (res.data || []).map(item => ({
         id: item.id,
@@ -180,7 +233,7 @@ const loadSubmissions = async () => {
         aiLoading: false
       }))
       if (tableData.value.length === 0) {
-        ElMessage.info('暂无学生提交作业')
+        ElMessage.info('该作业暂无学生提交')
       }
     } else {
       ElMessage.error(res.msg || '加载提交记录失败')
@@ -313,7 +366,7 @@ const applyAiComment = () => {
 }
 
 onMounted(() => {
-  loadSubmissions()
+  loadHomeworkList()
 })
 </script>
 

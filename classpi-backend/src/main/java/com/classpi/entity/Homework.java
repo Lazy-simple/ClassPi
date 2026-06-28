@@ -10,7 +10,6 @@ public class Homework {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long teacherId;
-    @TableField(exist = false)
     private Long courseId;
     private String title;
     private String content;

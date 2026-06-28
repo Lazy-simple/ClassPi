@@ -22,6 +22,9 @@ import java.util.stream.Collectors;
 public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> implements HomeworkService {
 
     @Resource
+    private HomeworkMapper homeworkMapper;
+
+    @Resource
     private HomeworkNoticeService homeworkNoticeService;
     @Resource
     private UserService userService;
@@ -85,4 +88,33 @@ public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> i
 
     @Resource
     private StudentHomeworkService studentHomeworkService;
+    @Override
+    public Result getHomeworkByCourse(Long courseId) {
+        try {
+            LambdaQueryWrapper<Homework> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Homework::getCourseId, courseId)
+                    .eq(Homework::getDeleted, 0)
+                    .orderByDesc(Homework::getCreateTime);
+            List<Homework> list = homeworkMapper.selectList(wrapper);
+            return Result.success("查询课程作业成功", list);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("查询课程作业失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result getTeacherHomework(Long teacherId) {
+        try {
+            LambdaQueryWrapper<Homework> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Homework::getTeacherId, teacherId)
+                    .eq(Homework::getDeleted, 0)
+                    .orderByDesc(Homework::getCreateTime);
+            List<Homework> list = homeworkMapper.selectList(wrapper);
+            return Result.success("查询教师作业成功", list);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("查询教师作业失败：" + e.getMessage());
+        }
+    }
 }

@@ -57,4 +57,12 @@ public class HomeworkController {
     public Result correct(@RequestBody HomeworkCorrectDTO dto, @RequestHeader("userId") Long teacherId) {
         return studentHomeworkService.correct(dto, teacherId);
     }
+
+    /**
+     * 获取教师的所有作业（教师发布作业时查看）
+     */
+    @GetMapping("/teacher/{teacherId}")
+    public Result getTeacherHomework(@PathVariable Long teacherId) {
+        return homeworkService.getTeacherHomework(teacherId);
+    }
 }

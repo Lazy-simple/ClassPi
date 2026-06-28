@@ -72,3 +72,19 @@ export function getScoreList(params) {
     params
   })
 }
+
+// 获取某课程的所有作业
+export function getHomeworkByCourse(courseId) {
+  return request({
+    url: `/api/student/homework/course/${courseId}`,
+    method: 'get'
+  })
+}
+
+// 获取教师的所有作业
+export function getTeacherHomeworkList(teacherId) {
+  return request({
+    url: `/api/homework/teacher/${teacherId}`,
+    method: 'get'
+  })
+}

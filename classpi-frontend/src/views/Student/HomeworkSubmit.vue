@@ -10,11 +10,11 @@
         <div class="info-body">
           <div class="info-item">
             <span class="label">所属课程：</span>
-            <span class="value highlight">{{ assignmentData?.courseName || '加载中...' }}</span>
+            <span class="value highlight">{{ assignmentData?.courseName || '请先选择课程' }}</span>
           </div>
           <div class="info-item">
             <span class="label">作业标题：</span>
-            <span class="value">{{ assignmentData?.title || '请选择要提交的作业' }}</span>
+            <span class="value">{{ assignmentData?.title || '请先选择作业' }}</span>
           </div>
           <div class="info-item">
             <span class="label">截止时间：</span>
@@ -33,6 +33,40 @@
         </template>
 
         <el-form :model="form" label-position="top" size="large">
+          <!-- 选择课程 -->
+          <el-form-item label="选择课程" required>
+            <el-select
+                v-model="form.courseId"
+                placeholder="请选择课程"
+                style="width:100%"
+                @change="onCourseChange"
+            >
+              <el-option
+                  v-for="course in courseList"
+                  :key="course.id"
+                  :label="course.courseName || course.name"
+                  :value="course.courseId || course.id"
+              />
+            </el-select>
+          </el-form-item>
+
+          <!-- 选择作业 -->
+          <el-form-item label="选择作业" required>
+            <el-select
+                v-model="form.homeworkId"
+                placeholder="请先选择课程"
+                style="width:100%"
+                @change="onHomeworkChange"
+            >
+              <el-option
+                  v-for="hw in homeworkList"
+                  :key="hw.id"
+                  :label="hw.title"
+                  :value="hw.id"
+              />
+            </el-select>
+          </el-form-item>
+
           <!-- 附件上传 -->
           <el-form-item label="上传附件" required>
             <div class="upload-area">
@@ -58,7 +92,7 @@
                 type="primary"
                 size="large"
                 :loading="submitting"
-                :disabled="!hasFile"
+                :disabled="!hasFile || !form.courseId || !form.homeworkId"
                 @click="submitHomeworkHandler"
                 class="submit-btn"
             >
@@ -76,36 +110,45 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { submitHomework, getAssignmentDetail } from '@/api/homework'
+import { submitHomework, getHomeworkByCourse } from '@/api/homework'
+import { getStudentCourses } from '@/api/course'
 import UploadFile from '@/components/UploadFile.vue'
 import { ElMessage } from 'element-plus'
 import { DocumentChecked, UploadFilled, Warning } from '@element-plus/icons-vue'
+import { useUserStore } from '@/store/user'
 
 const route = useRoute()
+const userStore = useUserStore()
 const submitting = ref(false)
 const isSubmitted = ref(false)
 const files = ref([])
 const uploadComponentRef = ref(null)
 
+// 课程列表
+const courseList = ref([])
+// 作业列表（根据选中的课程）
+const homeworkList = ref([])
+
 // 作业数据
 const assignmentData = ref({
-  id: route.query.id || 1,
-  courseName: route.query.courseName || 'Web前端开发技术',
-  title: route.query.title || '第三次平时作业：Vue组件化开发实践',
-  deadline: route.query.deadline || '2026-07-01 23:59'
+  id: '',
+  courseName: '',
+  title: '',
+  deadline: ''
 })
 
 const form = ref({
   remark: '',
-  homeworkId: Number(route.query.id) || 1,
+  courseId: '',
+  homeworkId: '',
   studentId: localStorage.getItem('userId') || '1',
   studentName: localStorage.getItem('userName') || '学生',
-  fileName: '',      // 添加
-  fileUrl: '',       // 添加
-  fileType: '',      // 添加
-  fileSize: 0,       // 添加
+  fileName: '',
+  fileUrl: '',
+  fileType: '',
+  fileSize: 0,
   file: null
 })
 
@@ -114,7 +157,62 @@ const hasFile = computed(() => {
   return files.value && files.value.length > 0
 })
 
-// 监听文件变化
+// 加载学生已选课程
+const loadCourses = async () => {
+  try {
+    const studentId = userStore.userInfo?.id || localStorage.getItem('userId')
+    const res = await getStudentCourses(studentId)
+    if (res.code === 200) {
+      courseList.value = res.data || []
+      if (courseList.value.length === 0) {
+        ElMessage.warning('你还没有选修任何课程，请先去选课')
+      }
+    }
+  } catch (error) {
+    console.error('加载课程失败:', error)
+    ElMessage.error('加载课程失败')
+  }
+}
+
+// 选择课程后加载对应的作业
+const onCourseChange = async (courseId) => {
+  form.value.homeworkId = ''
+  assignmentData.value = { id: '', courseName: '', title: '', deadline: '' }
+
+  // 找到课程名
+  const course = courseList.value.find(c => (c.courseId || c.id) === courseId)
+  if (course) {
+    assignmentData.value.courseName = course.courseName || course.name
+  }
+
+  try {
+    const res = await getHomeworkByCourse(courseId)
+    if (res.code === 200) {
+      homeworkList.value = res.data || []
+      if (homeworkList.value.length === 0) {
+        ElMessage.info('该课程暂无作业')
+      }
+    }
+  } catch (error) {
+    console.error('加载作业失败:', error)
+    ElMessage.error('加载作业失败')
+  }
+}
+
+// 选择作业后更新显示
+const onHomeworkChange = (homeworkId) => {
+  const hw = homeworkList.value.find(h => h.id === homeworkId)
+  if (hw) {
+    assignmentData.value = {
+      id: hw.id,
+      courseName: assignmentData.value.courseName,
+      title: hw.title,
+      deadline: hw.deadline || '--'
+    }
+    form.value.homeworkId = homeworkId
+  }
+}
+
 // 监听文件变化
 const fileChange = (fileList) => {
   console.log('文件变化:', fileList)
@@ -123,16 +221,16 @@ const fileChange = (fileList) => {
   if (files.value.length > 0) {
     const file = files.value[0]
     form.value.fileName = file.name || ''
-    form.value.fileUrl = file.url || ''        // ✅ 添加这行，保存 url
-    form.value.fileType = file.type || ''      // ✅ 添加这行，保存 type
+    form.value.fileUrl = file.url || ''
+    form.value.fileType = file.type || ''
     form.value.fileSize = file.size || 0
     if (file.raw) {
       form.value.file = file.raw
     }
-    console.log('form.value.fileUrl:', form.value.fileUrl)  // 打印看看有没有值
+    console.log('form.value.fileUrl:', form.value.fileUrl)
   } else {
     form.value.fileName = ''
-    form.value.fileUrl = ''                    // ✅ 清空
+    form.value.fileUrl = ''
     form.value.fileType = ''
     form.value.fileSize = 0
     form.value.file = null
@@ -148,13 +246,12 @@ const submitHomeworkHandler = async () => {
 
   submitting.value = true
   try {
-    // 直接从 form 取值，不需要从 file 再取
     const submitData = {
       homeworkId: form.value.homeworkId,
       submitContent: form.value.remark || '',
-      fileUrl: form.value.fileUrl || '',        // ✅ 从 form 取
-      fileName: form.value.fileName || '',      // ✅ 从 form 取
-      fileType: form.value.fileType || ''       // ✅ 从 form 取
+      fileUrl: form.value.fileUrl || '',
+      fileName: form.value.fileName || '',
+      fileType: form.value.fileType || ''
     }
 
     console.log('提交数据:', submitData)
@@ -165,7 +262,7 @@ const submitHomeworkHandler = async () => {
       isSubmitted.value = true
       files.value = []
       form.value.remark = ''
-      form.value.fileUrl = ''     // 清空
+      form.value.fileUrl = ''
       form.value.fileName = ''
       form.value.fileType = ''
     } else {
@@ -182,6 +279,10 @@ const submitHomeworkHandler = async () => {
     submitting.value = false
   }
 }
+
+onMounted(() => {
+  loadCourses()
+})
 </script>
 
 <style scoped>
@@ -199,7 +300,6 @@ const submitHomeworkHandler = async () => {
   gap: 20px;
 }
 
-/* 作业信息卡片 */
 .assignment-info-card {
   background: #fff;
   padding: 25px;
@@ -252,7 +352,6 @@ const submitHomeworkHandler = async () => {
   color: #e6a23c;
 }
 
-/* 表单卡片 */
 .form-card {
   border-radius: 12px;
   border: none;

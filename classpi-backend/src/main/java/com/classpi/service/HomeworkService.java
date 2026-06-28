@@ -8,14 +8,21 @@ import com.classpi.entity.Homework;
 public interface HomeworkService extends IService<Homework> {
     /**
      * 教师发布作业
-     * @param dto 发布参数
-     * @param teacherId 当前教师id
      */
     Result publish(HomeworkPublishDTO dto, Long teacherId);
 
     /**
      * 催交作业，给未提交学生发通知
-     * @param homeworkId 作业id
      */
     Result remind(Long homeworkId);
+
+    /**
+     * 获取某课程的所有作业
+     */
+    Result getHomeworkByCourse(Long courseId);
+
+    /**
+     * 获取教师的所有作业
+     */
+    Result getTeacherHomework(Long teacherId);  // ✅ 添加这行
 }

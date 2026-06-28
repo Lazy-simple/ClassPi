@@ -3,6 +3,7 @@ package com.classpi.controller;
 import com.classpi.common.Result;
 import com.classpi.dto.homework.HomeworkSubmitDTO;
 import com.classpi.entity.StudentHomework;
+import com.classpi.service.HomeworkService;
 import com.classpi.service.StudentHomeworkService;
 import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
@@ -14,13 +15,15 @@ public class StudentHomeworkController {
     @Resource
     private StudentHomeworkService studentHomeworkService;
 
+    @Resource
+    private HomeworkService homeworkService;  // ⚠️ 添加这行，注入 HomeworkService
+
     /**
      * 学生提交作业
      * POST /api/student/homework/submit
      */
     @PostMapping("/submit")
     public Result submit(@RequestBody HomeworkSubmitDTO dto, @RequestHeader(value = "userId", required = false) Long studentId) {
-        // ========== 添加日志 ==========
         System.out.println("========== StudentHomeworkController.submit 被调用 ==========");
         System.out.println("dto: " + dto);
         System.out.println("studentId (从Header获取): " + studentId);
@@ -49,5 +52,14 @@ public class StudentHomeworkController {
         }
         StudentHomework record = studentHomeworkService.getByHwAndStu(hwId, studentId);
         return Result.success("查询成功", record);
+    }
+
+    /**
+     * 获取某课程的所有作业（学生提交作业时选择）
+     * GET /api/student/homework/course/{courseId}
+     */
+    @GetMapping("/course/{courseId}")
+    public Result getHomeworkByCourse(@PathVariable Long courseId) {
+        return homeworkService.getHomeworkByCourse(courseId);
     }
 }
