@@ -58,9 +58,19 @@
             <h4>评论区</h4>
             <!-- 评论输入框：学生、教师都可用 -->
             <div v-if="allowDiscuss" class="comment-input">
-              <el-input v-model="commentForm.content" placeholder="输入评论内容" style="flex:1" />
-              <el-checkbox v-model="commentForm.isAnonymous" class="ml-2">匿名</el-checkbox>
-              <el-button type="primary" size="small" class="ml-2" :loading="commentLoading" @click="handleSubmitComment(topic.id)">提交</el-button>
+              <el-input
+                  v-model="commentForm[topic.id].content"
+                  placeholder="输入评论内容"
+                  style="flex:1"
+              />
+              <el-checkbox v-model="commentForm[topic.id].isAnonymous" class="ml-2">匿名</el-checkbox>
+              <el-button
+                  type="primary"
+                  size="small"
+                  class="ml-2"
+                  :loading="commentLoading"
+                  @click="handleSubmitComment(topic.id)"
+              >提交</el-button>
             </div>
             <div v-if="!commentMap[topic.id] || commentMap[topic.id].length === 0" class="empty-comment">
               暂无评论，快来抢沙发！
@@ -127,11 +137,21 @@ const commentMap = reactive({})
 
 // 表单
 const topicForm = ref({ title: '', content: '' })
-const commentForm = ref({ content: '', isAnonymous: 0 })
+const commentForm = reactive({})
 const editDialog = ref(false)
 const editForm = ref({ topicId: null, title: '', content: '' })
 
 // ========== 工具函数 ==========
+
+// 初始化评论表单
+const initCommentForm = (topicId) => {
+  if (!commentForm[topicId]) {
+    commentForm[topicId] = {
+      content: '',
+      isAnonymous: 0
+    }
+  }
+}
 
 const formatTime = (time) => {
   if (!time) return ''
@@ -154,8 +174,9 @@ const loadTopics = async () => {
     const res = await fetchTopicList(courseId.value)
     if (res.code === 200) {
       topicList.value = res.data || []
-      // 加载每个话题的评论
       for (const topic of topicList.value) {
+        // 初始化评论表单
+        initCommentForm(topic.id)
         await loadReplies(topic.id)
       }
     } else {
@@ -306,7 +327,8 @@ const handleSaveEdit = async () => {
 
 // 提交评论
 const handleSubmitComment = async (topicId) => {
-  if (!commentForm.value.content) {
+  const form = commentForm[topicId]
+  if (!form || !form.content) {
     return ElMessage.warning('评论不能为空')
   }
 
@@ -318,23 +340,26 @@ const handleSubmitComment = async (topicId) => {
   commentLoading.value = true
   try {
     const data = {
-      topicId: topicId,
-      content: commentForm.value.content,
+      topicId: Number(topicId),
+      content: form.content.trim(),
       authorId: String(userInfo.id),
       authorName: userInfo.name || userInfo.username || '用户',
       authorType: userInfo.identity === 'teacher' ? 1 : 2,
-      isAnonymous: commentForm.value.isAnonymous ? 1 : 0
+      isAnonymous: form.isAnonymous ? 1 : 0
     }
 
     const res = await apiAddComment(data)
     if (res.code === 200) {
       ElMessage.success('评论成功')
-      commentForm.value.content = ''
-      commentForm.value.isAnonymous = 0
+      // 清空这个话题的评论输入
+      commentForm[topicId] = {
+        content: '',
+        isAnonymous: 0
+      }
       await loadReplies(topicId)
       await loadTopics()
     } else {
-      ElMessage.error(res.msg || '评论失败')
+      ElMessage.error(res.msg || res.message || '评论失败')
     }
   } catch (error) {
     console.error('评论失败:', error)
