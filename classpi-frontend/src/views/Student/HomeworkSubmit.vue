@@ -101,7 +101,12 @@ const form = ref({
   remark: '',
   homeworkId: Number(route.query.id) || 1,
   studentId: localStorage.getItem('userId') || '1',
-  studentName: localStorage.getItem('userName') || '学生'
+  studentName: localStorage.getItem('userName') || '学生',
+  fileName: '',      // 添加
+  fileUrl: '',       // 添加
+  fileType: '',      // 添加
+  fileSize: 0,       // 添加
+  file: null
 })
 
 // 判断是否有文件
@@ -110,26 +115,30 @@ const hasFile = computed(() => {
 })
 
 // 监听文件变化
+// 监听文件变化
 const fileChange = (fileList) => {
   console.log('文件变化:', fileList)
   files.value = fileList || []
 
   if (files.value.length > 0) {
     const file = files.value[0]
-    form.value.fileName = file.name
-    form.value.fileSize = file.size
-    // 如果是自定义上传，保存文件对象
+    form.value.fileName = file.name || ''
+    form.value.fileUrl = file.url || ''        // ✅ 添加这行，保存 url
+    form.value.fileType = file.type || ''      // ✅ 添加这行，保存 type
+    form.value.fileSize = file.size || 0
     if (file.raw) {
       form.value.file = file.raw
     }
+    console.log('form.value.fileUrl:', form.value.fileUrl)  // 打印看看有没有值
   } else {
     form.value.fileName = ''
+    form.value.fileUrl = ''                    // ✅ 清空
+    form.value.fileType = ''
     form.value.fileSize = 0
     form.value.file = null
   }
 }
 
-// 提交作业
 // 提交作业
 const submitHomeworkHandler = async () => {
   if (!hasFile.value) {
@@ -139,15 +148,13 @@ const submitHomeworkHandler = async () => {
 
   submitting.value = true
   try {
-    const file = files.value[0]
-
+    // 直接从 form 取值，不需要从 file 再取
     const submitData = {
       homeworkId: form.value.homeworkId,
-      studentId: form.value.studentId,
-      studentName: form.value.studentName,
-      fileName: file?.name || '',
-      fileSize: file?.size || 0,
-      submitContent: form.value.remark || ''
+      submitContent: form.value.remark || '',
+      fileUrl: form.value.fileUrl || '',        // ✅ 从 form 取
+      fileName: form.value.fileName || '',      // ✅ 从 form 取
+      fileType: form.value.fileType || ''       // ✅ 从 form 取
     }
 
     console.log('提交数据:', submitData)
@@ -156,14 +163,11 @@ const submitHomeworkHandler = async () => {
     if (res.code === 200) {
       ElMessage.success('作业提交成功！')
       isSubmitted.value = true
-
-      // 简单处理：清空文件列表和重置状态
       files.value = []
       form.value.remark = ''
-
-      // 重新加载页面数据
-      // 或者直接刷新页面
-      // window.location.reload()
+      form.value.fileUrl = ''     // 清空
+      form.value.fileName = ''
+      form.value.fileType = ''
     } else {
       ElMessage.error(res.msg || '提交失败，请重试')
     }

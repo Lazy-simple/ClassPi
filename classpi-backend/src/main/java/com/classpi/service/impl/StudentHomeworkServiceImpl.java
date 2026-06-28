@@ -19,21 +19,26 @@ public class StudentHomeworkServiceImpl extends ServiceImpl<StudentHomeworkMappe
 
     @Override
     public Result submit(HomeworkSubmitDTO dto, Long studentId) {
-        // 添加这行日志
-        System.out.println("========== submit 方法被调用 ==========");
-        System.out.println("dto: " + dto);
-        System.out.println("studentId: " + studentId);
+        // 查询是否已有提交记录
+        LambdaQueryWrapper<StudentHomework> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(StudentHomework::getHomeworkId, dto.getHomeworkId())
+                .eq(StudentHomework::getStudentId, studentId);
+        StudentHomework exist = this.getOne(wrapper);
 
-        try {
-            // 判断是否重复提交
-            LambdaQueryWrapper<StudentHomework> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(StudentHomework::getHomeworkId, dto.getHomeworkId())
-                    .eq(StudentHomework::getStudentId, studentId);
-            StudentHomework exist = this.getOne(wrapper);
-            if (exist != null) {
-                return Result.error("你已提交该作业，不可重复提交");
-            }
-
+        if (exist != null) {
+            // ========== 已有记录：更新（覆盖提交） ==========
+            exist.setSubmitContent(dto.getSubmitContent());
+            exist.setFileUrl(dto.getFileUrl());
+            exist.setFileName(dto.getFileName());
+            exist.setFileType(dto.getFileType());
+            exist.setSubmitTime(LocalDateTime.now());
+            exist.setCorrected(0);  // 重新提交后需要重新批阅
+            exist.setCorrectionContent(null);  // 清空之前的评语
+            exist.setCorrectionTime(null);
+            boolean update = this.updateById(exist);
+            return update ? Result.success("重新提交成功") : Result.error("重新提交失败");
+        } else {
+            // ========== 没有记录：新增 ==========
             StudentHomework submit = new StudentHomework();
             submit.setHomeworkId(dto.getHomeworkId());
             submit.setStudentId(studentId);
@@ -45,9 +50,6 @@ public class StudentHomeworkServiceImpl extends ServiceImpl<StudentHomeworkMappe
             submit.setCorrected(0);
             boolean save = this.save(submit);
             return save ? Result.success("提交成功") : Result.error("提交失败");
-        } catch (Exception e) {
-            e.printStackTrace();  // 打印完整错误
-            return Result.error("提交失败：" + e.getMessage());
         }
     }
 
