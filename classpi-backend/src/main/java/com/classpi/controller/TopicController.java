@@ -103,4 +103,24 @@ public class TopicController {
                                    @RequestParam(defaultValue = "10") Long pageSize) {
         return topicService.getTopicReplies(id, page, pageSize);
     }
+
+    /**
+     * 禁言话题（教师用）
+     * PUT /topic/{id}/disable-comment
+     */
+    @PutMapping("/{id}/disable-comment")
+    @RequireRole({"teacher"})
+    public Result disableComment(@PathVariable Integer id) {
+        return topicService.disableComment(id);
+    }
+
+    /**
+     * 解禁话题（教师用）
+     * PUT /topic/{id}/enable-comment
+     */
+    @PutMapping("/{id}/enable-comment")
+    @RequireRole({"teacher"})
+    public Result enableComment(@PathVariable Integer id) {
+        return topicService.enableComment(id);
+    }
 }

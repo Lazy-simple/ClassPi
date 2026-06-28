@@ -4,20 +4,11 @@
       <template #header>
         <div class="header-row">
           <h2>课程讨论区</h2>
-          <el-switch
-              v-if="userStore.userInfo?.identity === 'teacher'"
-              v-model="allowDiscuss"
-              active-text="允许讨论"
-              inactive-text="关闭讨论"
-              @change="changeDiscussSwitch"
-          />
         </div>
       </template>
 
-      <el-alert v-if="!allowDiscuss" type="warning" title="教师已关闭本课程讨论，无法发布话题和评论" />
-
       <!-- 发布话题：仅教师可见 -->
-      <div v-if="allowDiscuss && userStore.userInfo?.identity === 'teacher'" class="publishing-box">
+      <div v-if="userStore.userInfo?.identity === 'teacher'" class="publishing-box">
         <el-input v-model="topicForm.title" placeholder="输入话题标题" />
         <el-input
             v-model="topicForm.content"
@@ -38,12 +29,22 @@
             <h3>
               {{ topic.title }}
               <el-tag v-if="topic.isTop === 1" type="danger" size="small">置顶</el-tag>
+              <!-- 禁言标签 -->
+              <el-tag v-if="topic.allowComment === 0" type="warning" size="small">🔇 已禁言</el-tag>
             </h3>
             <div class="topic-operate" v-if="userStore.userInfo?.identity === 'teacher'">
               <el-button size="small" @click="openEdit(topic)">编辑</el-button>
               <el-button size="small" type="danger" @click="handleDeleteTopic(topic)">删除</el-button>
               <el-button size="small" type="warning" @click="handleToggleTop(topic)">
                 {{ topic.isTop === 1 ? '取消置顶' : '置顶' }}
+              </el-button>
+              <!-- 禁言/解禁按钮 -->
+              <el-button
+                  size="small"
+                  :type="topic.allowComment === 1 ? 'danger' : 'success'"
+                  @click="handleToggleComment(topic)"
+              >
+                {{ topic.allowComment === 1 ? '🔇 禁言' : '🔊 解禁' }}
               </el-button>
             </div>
           </div>
@@ -55,9 +56,14 @@
           </div>
 
           <div class="comment-wrap">
-            <h4>评论区</h4>
-            <!-- 评论输入框：学生、教师都可用 -->
-            <div v-if="allowDiscuss" class="comment-input">
+            <h4>
+              评论区
+              <el-tag v-if="topic.allowComment === 0" size="small" type="danger" style="margin-left:10px;">
+                🔇 已禁言
+              </el-tag>
+            </h4>
+            <!-- 评论输入框：禁言时隐藏 -->
+            <div v-if="topic.allowComment !== 0" class="comment-input">
               <el-input
                   v-model="commentForm[topic.id].content"
                   placeholder="输入评论内容"
@@ -71,6 +77,12 @@
                   :loading="commentLoading"
                   @click="handleSubmitComment(topic.id)"
               >提交</el-button>
+            </div>
+            <!-- 禁言提示 -->
+            <div v-else class="disabled-comment">
+              <el-alert type="warning" :closable="false" show-icon>
+                该话题已被教师禁言，无法发表评论
+              </el-alert>
             </div>
             <div v-if="!commentMap[topic.id] || commentMap[topic.id].length === 0" class="empty-comment">
               暂无评论，快来抢沙发！
@@ -112,7 +124,9 @@ import {
   setTopicTop as apiSetTopicTop,
   getCommentList as apiGetCommentList,
   addComment as apiAddComment,
-  switchDiscuss as apiSwitchDiscuss
+  switchDiscuss as apiSwitchDiscuss,
+  disableComment as apiDisableComment,
+  enableComment as apiEnableComment
 } from '@/api/topic'
 
 const route = useRoute()
@@ -126,8 +140,6 @@ const loading = ref(false)
 const submitting = ref(false)
 const commentLoading = ref(false)
 
-// 是否允许讨论
-const allowDiscuss = ref(true)
 
 // 话题列表
 const topicList = ref([])
@@ -173,7 +185,10 @@ const loadTopics = async () => {
   try {
     const res = await fetchTopicList(courseId.value)
     if (res.code === 200) {
-      topicList.value = res.data || []
+      topicList.value = (res.data || []).map(topic => ({
+        ...topic,
+        allowComment: topic.allowComment !== undefined ? topic.allowComment : 1
+      }))
       for (const topic of topicList.value) {
         // 初始化评论表单
         initCommentForm(topic.id)
@@ -218,8 +233,11 @@ const handlePublishTopic = async () => {
 
   submitting.value = true
   try {
+    const courseNo = localStorage.getItem('currentCourseNo') || 'C001'
+
     const data = {
       courseId: courseId.value,
+      courseNo: courseNo,
       title: topicForm.value.title,
       content: topicForm.value.content,
       authorId: String(userInfo.id),
@@ -227,6 +245,8 @@ const handlePublishTopic = async () => {
       authorType: userInfo.identity === 'teacher' ? 1 : 2,
       isAnonymous: 0
     }
+
+    console.log('发布话题数据:', data)
 
     const res = await apiPublishTopic(data)
     if (res.code === 200) {
@@ -238,6 +258,9 @@ const handlePublishTopic = async () => {
     }
   } catch (error) {
     console.error('发布话题失败:', error)
+    if (error.response?.data) {
+      console.error('后端返回错误:', error.response.data)
+    }
     ElMessage.error('网络异常，请稍后重试')
   } finally {
     submitting.value = false
@@ -253,7 +276,11 @@ const handleDeleteTopic = async (topic) => {
       type: 'warning'
     })
 
-    const res = await apiDeleteTopic(topic.id)
+    const res = await apiDeleteTopic(
+        topic.id,
+        topic.authorId,  // ✅ 改这里：用话题自己的 authorId
+        userStore.userInfo?.identity || 'student'
+    )
     if (res.code === 200) {
       ElMessage.success('删除成功')
       await loadTopics()
@@ -300,12 +327,19 @@ const handleSaveEdit = async () => {
     return ElMessage.warning('标题和内容不能为空')
   }
 
+  const userInfo = userStore.userInfo
+  if (!userInfo || !userInfo.id) {
+    return ElMessage.warning('请先登录')
+  }
+
   submitting.value = true
   try {
     const data = {
       id: editForm.value.topicId,
       title: editForm.value.title,
-      content: editForm.value.content
+      content: editForm.value.content,
+      authorId: String(userInfo.id),           // ✅ 添加
+      identity: userInfo.identity || 'student' // ✅ 添加
     }
     const res = await apiEditTopic(data)
     if (res.code === 200) {
@@ -320,6 +354,38 @@ const handleSaveEdit = async () => {
     ElMessage.error('网络异常，请稍后重试')
   } finally {
     submitting.value = false
+  }
+}
+
+// ========== 禁言/解禁 ==========
+
+// 禁言/解禁切换
+const handleToggleComment = async (topic) => {
+  const isDisabled = topic.allowComment === 0
+  const action = isDisabled ? '解禁' : '禁言'
+
+  try {
+    await ElMessageBox.confirm(
+        `确定要${action}话题「${topic.title}」吗？${!isDisabled ? '禁言后学生将无法发表评论。' : ''}`,
+        '提示',
+        { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+
+    const res = isDisabled
+        ? await apiEnableComment(topic.id)
+        : await apiDisableComment(topic.id)
+
+    if (res.code === 200) {
+      ElMessage.success(res.msg)
+      await loadTopics()
+    } else {
+      ElMessage.error(res.msg || '操作失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('操作失败:', error)
+      ElMessage.error('网络异常，请稍后重试')
+    }
   }
 }
 
@@ -351,7 +417,6 @@ const handleSubmitComment = async (topicId) => {
     const res = await apiAddComment(data)
     if (res.code === 200) {
       ElMessage.success('评论成功')
-      // 清空这个话题的评论输入
       commentForm[topicId] = {
         content: '',
         isAnonymous: 0
@@ -366,24 +431,6 @@ const handleSubmitComment = async (topicId) => {
     ElMessage.error('网络异常，请稍后重试')
   } finally {
     commentLoading.value = false
-  }
-}
-
-// ========== 讨论开关 ==========
-
-const changeDiscussSwitch = async () => {
-  try {
-    const res = await apiSwitchDiscuss(courseId.value, allowDiscuss.value)
-    if (res.code === 200) {
-      ElMessage.success(allowDiscuss.value ? '已开启讨论' : '已关闭讨论')
-    } else {
-      ElMessage.error(res.msg || '操作失败')
-      allowDiscuss.value = !allowDiscuss.value
-    }
-  } catch (error) {
-    console.error('切换讨论状态失败:', error)
-    ElMessage.error('网络异常，请稍后重试')
-    allowDiscuss.value = !allowDiscuss.value
   }
 }
 
@@ -406,6 +453,7 @@ onMounted(() => {
 .comment-input { display: flex; align-items: center; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
 .comment-item { padding: 6px 0; font-size: 14px; border-bottom: 1px solid #f5f5f5; }
 .empty-comment { color: #999; font-size: 13px; padding: 8px 0; }
+.disabled-comment { margin: 10px 0; }
 .ml-2 { margin-left: 8px; }
 .mt-3 { margin-top: 12px; }
 .empty-tip { padding: 40px 0; }

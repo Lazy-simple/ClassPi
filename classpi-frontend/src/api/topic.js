@@ -98,3 +98,19 @@ export function switchDiscuss(courseId, allowDiscuss) {
         params: { allowDiscuss }
     })
 }
+
+// 禁言话题
+export function disableComment(topicId) {
+    return request({
+        url: `/topic/${topicId}/disable-comment`,
+        method: 'put'
+    })
+}
+
+// 解禁话题
+export function enableComment(topicId) {
+    return request({
+        url: `/topic/${topicId}/enable-comment`,
+        method: 'put'
+    })
+}

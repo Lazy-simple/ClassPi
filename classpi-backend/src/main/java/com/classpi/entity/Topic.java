@@ -41,4 +41,6 @@ public class Topic {
     private Date updateTime;
 
     private Integer deleted;
+
+    private Integer allowComment;  // 1允许评论，0禁止评论
 }

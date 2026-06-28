@@ -24,4 +24,14 @@ public interface TopicService {
     Result deleteReply(Integer id, String authorId, String identity);
     
     Result getTopicReplies(Integer topicId, Long page, Long pageSize);
+
+    /**
+     * 禁言话题（禁止评论）
+     */
+    Result disableComment(Integer id);
+
+    /**
+     * 解禁话题（允许评论）
+     */
+    Result enableComment(Integer id);
 }

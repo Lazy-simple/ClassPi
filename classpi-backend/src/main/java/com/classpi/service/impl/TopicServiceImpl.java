@@ -88,17 +88,27 @@ public class TopicServiceImpl implements TopicService {
     @Transactional
     public Result deleteTopic(Integer id, String authorId, String identity) {
         try {
+            System.out.println("========== deleteTopic ==========");
+            System.out.println("话题ID: " + id);
+            System.out.println("传入的 authorId: " + authorId);
+
             Topic topic = topicMapper.selectById(id);
             if (topic == null) {
                 return Result.error("话题不存在");
             }
 
-            if (!"teacher".equals(identity) && !topic.getAuthorId().equals(authorId)) {
+            System.out.println("数据库中的 authorId: " + topic.getAuthorId());
+
+            // ✅ 只能删除自己发布的话题（无论是教师还是学生）
+            if (!topic.getAuthorId().equals(authorId)) {
                 return Result.error("无权限删除该话题");
             }
 
-            topic.setDeleted(1);
-            int result = topicMapper.updateById(topic);
+            // ✅ 使用 MyBatis-Plus 的逻辑删除
+            int result = topicMapper.deleteById(id);
+
+            System.out.println("删除结果: " + result);
+
             if (result > 0) {
                 return Result.success("删除话题成功");
             } else {
@@ -300,6 +310,42 @@ public class TopicServiceImpl implements TopicService {
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("获取评论列表失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result disableComment(Integer id) {
+        try {
+            Topic topic = topicMapper.selectById(id);
+            if (topic == null) {
+                return Result.error("话题不存在");
+            }
+            topic.setAllowComment(0);
+            topic.setUpdateTime(new Date());
+            int result = topicMapper.updateById(topic);
+            return result > 0 ? Result.success("已禁言，该话题无法评论") : Result.error("禁言失败");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("禁言失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result enableComment(Integer id) {
+        try {
+            Topic topic = topicMapper.selectById(id);
+            if (topic == null) {
+                return Result.error("话题不存在");
+            }
+            topic.setAllowComment(1);
+            topic.setUpdateTime(new Date());
+            int result = topicMapper.updateById(topic);
+            return result > 0 ? Result.success("已解禁，该话题可以评论") : Result.error("解禁失败");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("解禁失败：" + e.getMessage());
         }
     }
 }
