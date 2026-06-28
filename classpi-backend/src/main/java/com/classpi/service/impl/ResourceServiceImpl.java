@@ -29,9 +29,10 @@ public class ResourceServiceImpl implements ResourceService {
     private ResourceMapper resourceMapper;
 
     @Override
-    public Result getCourseResources(Integer courseId, Long page, Long pageSize) {
+    public Result getCourseResources(Integer courseId, Long page, Long pageSize, String parentId) {
         System.out.println("========== 5. Service.getCourseResources 被调用 ==========");
-        System.out.println("courseId: " + courseId + ", page: " + page + ", pageSize: " + pageSize);
+        System.out.println(
+                "courseId: " + courseId + ", page: " + page + ", pageSize: " + pageSize + ", parentId: " + parentId);
 
         try {
             if (resourceMapper == null) {
@@ -43,6 +44,7 @@ public class ResourceServiceImpl implements ResourceService {
             System.out.println("========== 7. 开始查询 ==========");
             QueryWrapper<Resource> queryWrapper = new QueryWrapper<>();
             queryWrapper.eq("course_id", courseId)
+                    .eq("parent_id", parentId != null ? parentId : "0")
                     .eq("deleted", 0);
 
             List<Resource> resources = resourceMapper.selectList(queryWrapper);
@@ -103,6 +105,8 @@ public class ResourceServiceImpl implements ResourceService {
             Resource resource = new Resource();
             resource.setCourseId(courseId);
             resource.setCourseNo(courseNo);
+            resource.setName(folderName); // 设置 name 字段
+            resource.setType("folder"); // 设置 type 字段
             resource.setFolderName(folderName);
             resource.setIsFolder(1);
             resource.setParentId(parentId != null ? parentId : "0");
@@ -167,9 +171,18 @@ public class ResourceServiceImpl implements ResourceService {
                 return Result.error("资源不存在");
             }
 
-            resource.setDeleted(1);
-            int updateResult = resourceMapper.updateById(resource);
-            logger.info("删除结果: {}", updateResult);
+            // 删除物理文件（如果是文件类型）
+            if (resource.getIsFolder() == 0 && resource.getPath() != null && !resource.getPath().isEmpty()) {
+                File file = new File(resource.getPath());
+                if (file.exists()) {
+                    boolean deleted = file.delete();
+                    logger.info("物理文件删除结果: {}, 路径: {}", deleted, resource.getPath());
+                }
+            }
+
+            // 使用 MyBatis-Plus 的 deleteById 执行逻辑删除（@TableLogic 会自动转为 UPDATE deleted=1）
+            int deleteResult = resourceMapper.deleteById(id);
+            logger.info("逻辑删除结果: {}", deleteResult);
 
             return Result.success("删除资源成功");
         } catch (Exception e) {
@@ -217,6 +230,52 @@ public class ResourceServiceImpl implements ResourceService {
         logger.info("========== uploadAttachment ==========");
         logger.info("参数: courseId={}, courseNo={}, fileName={}, parentId={}, uploaderId={}, uploaderName={}",
                 courseId, courseNo, file.getOriginalFilename(), parentId, uploaderId, uploaderName);
-        return Result.success("附件上传成功");
+
+        try {
+            // 1. 保存文件到服务器
+            String uploadDir = "E:/计算机II课设/";
+            File dir = new File(uploadDir);
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+
+            // 生成唯一文件名
+            String originalFilename = file.getOriginalFilename();
+            String extension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String newFileName = System.currentTimeMillis() + "_" + Math.random() * 1000 + extension;
+            String filePath = uploadDir + newFileName;
+
+            // 保存文件
+            file.transferTo(new File(filePath));
+            logger.info("文件保存成功: {}", filePath);
+
+            // 2. 保存资源记录到数据库
+            Resource resource = new Resource();
+            resource.setCourseId(courseId);
+            resource.setCourseNo(courseNo);
+            resource.setName(originalFilename);
+            resource.setType("file");
+            resource.setPath(filePath);
+            resource.setIsFolder(0);
+            resource.setParentId(parentId != null ? parentId : "0");
+            resource.setUploaderId(uploaderId);
+            resource.setUploaderName(uploaderName);
+            resource.setFileSize(file.getSize());
+            resource.setFileType(file.getContentType());
+            resource.setCreateTime(new Date());
+            resource.setDeleted(0);
+
+            logger.info("准备插入数据: {}", resource);
+            int insertResult = resourceMapper.insert(resource);
+            logger.info("插入结果: {}", insertResult);
+
+            return Result.success("附件上传成功", resource);
+        } catch (Exception e) {
+            logger.error("uploadAttachment 失败: ", e);
+            return Result.error("附件上传失败：" + e.getMessage());
+        }
     }
 }

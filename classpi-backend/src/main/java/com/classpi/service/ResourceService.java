@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public interface ResourceService {
 
-    Result getCourseResources(Integer courseId, Long page, Long pageSize);
+    Result getCourseResources(Integer courseId, Long page, Long pageSize, String parentId);
 
     Result getFolderResources(Integer courseId, String parentId, Long page, Long pageSize);
 

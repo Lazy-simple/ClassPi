@@ -69,6 +69,8 @@ public class ResourceController {
     @DeleteMapping("/{id}")
     @RequireRole({ "teacher" })
     public Result deleteResource(@PathVariable Integer id) {
+        System.out.println("========== deleteResource Controller 被调用 ==========");
+        System.out.println("删除资源ID: " + id);
         return resourceService.deleteResource(id);
     }
 
@@ -109,14 +111,15 @@ public class ResourceController {
     @GetMapping("/course/{courseId}")
     public Result getCourseResources(@PathVariable Integer courseId,
             @RequestParam(defaultValue = "1") Long page,
-            @RequestParam(defaultValue = "10") Long pageSize) {
-        // 添加这行，看方法是否被调用
+            @RequestParam(defaultValue = "10") Long pageSize,
+            @RequestParam(defaultValue = "0") String parentId) {
         System.out.println("========== 1. Controller.getCourseResources 被调用 ==========");
-        System.out.println("courseId: " + courseId + ", page: " + page + ", pageSize: " + pageSize);
+        System.out.println(
+                "courseId: " + courseId + ", page: " + page + ", pageSize: " + pageSize + ", parentId: " + parentId);
 
         try {
             System.out.println("========== 2. 准备调用 Service ==========");
-            Result result = resourceService.getCourseResources(courseId, page, pageSize);
+            Result result = resourceService.getCourseResources(courseId, page, pageSize, parentId);
             System.out.println("========== 3. Service 返回结果 ==========");
             return result;
         } catch (Exception e) {

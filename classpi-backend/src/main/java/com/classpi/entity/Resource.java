@@ -2,6 +2,7 @@ package com.classpi.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -42,5 +43,6 @@ public class Resource {
 
     private Date updateTime;
 
-    private Integer deleted;
+    @TableLogic
+    private Integer deleted;      // 逻辑删除字段：1-已删除，0-未删除
 }

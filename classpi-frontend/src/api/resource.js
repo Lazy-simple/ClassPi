@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 
 // 获取课程全部资源树
-export function getResourceTree(courseId, page = 1, pageSize = 10) {
+export function getResourceTree(courseId, page = 1, pageSize = 10, parentId = '0') {
     // 参数校验 - 如果 courseId 无效，使用默认值 1
     let id = Number(courseId)
     if (isNaN(id) || id <= 0) {
@@ -11,13 +11,14 @@ export function getResourceTree(courseId, page = 1, pageSize = 10) {
 
     console.log('========== 发起请求 ==========')
     console.log('courseId:', id)
+    console.log('parentId:', parentId)
     console.log('请求URL:', `/resource/course/${id}`)
-    console.log('完整地址:', `http://localhost:8080/resource/course/${id}?page=${page}&pageSize=${pageSize}`)
+    console.log('完整地址:', `http://localhost:8080/resource/course/${id}?page=${page}&pageSize=${pageSize}&parentId=${parentId}`)
 
     return request({
         url: `/resource/course/${id}`,
         method: 'get',
-        params: { page, pageSize }
+        params: { page, pageSize, parentId }
     })
 }
 

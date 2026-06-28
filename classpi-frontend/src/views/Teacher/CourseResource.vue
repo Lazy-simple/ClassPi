@@ -4,21 +4,61 @@
       <template #header>
         <div class="header-row">
           <h2>课程资料管理</h2>
+          <div class="course-selector">
+            <el-select v-model="selectedCourseId" placeholder="请选择课程" @change="onCourseChange">
+              <el-option v-for="course in courseList" :key="course.id" :label="course.name" :value="course.id" />
+            </el-select>
+          </div>
           <div class="btn-group">
-            <el-button type="primary" @click="openFolderDialog">新建文件夹</el-button>
-            <el-button @click="openLinkDialog">添加外链资源</el-button>
+            <el-button type="primary" @click="openFolderDialog" :disabled="!selectedCourseId">新建文件夹</el-button>
+            <el-button type="success" @click="openUploadDialog" :disabled="!selectedCourseId">上传文件</el-button>
+            <el-button @click="openLinkDialog" :disabled="!selectedCourseId">添加外链资源</el-button>
           </div>
         </div>
       </template>
+
+      <!-- 面包屑导航 -->
+      <div class="breadcrumb" v-if="breadcrumbs.length > 0">
+        <el-breadcrumb separator="/">
+          <el-breadcrumb-item @click="goHome">根目录</el-breadcrumb-item>
+          <el-breadcrumb-item v-for="item in breadcrumbs" :key="item.id" @click="goToFolder(item)">
+            {{ item.name || item.folderName }}
+          </el-breadcrumb-item>
+        </el-breadcrumb>
+      </div>
 
       <!-- 资源列表（暂无数据时显示空状态） -->
       <div v-if="resourceList.length === 0">
         <el-empty description="暂无资料数据"></el-empty>
       </div>
       <div v-else class="resource-list">
-        <!-- 这里可扩展渲染资源树/列表，示例仅做占位 -->
+        <!-- 资源列表 -->
         <div class="resource-item" v-for="item in resourceList" :key="item.id">
-          {{ item.name }} - {{ item.type }}
+          <div class="resource-icon">
+            <el-icon v-if="isFolder(item)" :size="24" color="#409EFF">
+              <Folder />
+            </el-icon>
+            <el-icon v-else-if="item.type === 'link'" :size="24" color="#67C23A">
+              <Link />
+            </el-icon>
+            <el-icon v-else :size="24" color="#909399">
+              <Document />
+            </el-icon>
+          </div>
+          <div class="resource-info">
+            <div class="resource-name">{{ item.name || item.folderName || '未命名' }}</div>
+            <div class="resource-meta">
+              <span>{{ getResourceTypeText(item) }}</span>
+              <span v-if="item.fileSize">{{ formatFileSize(item.fileSize) }}</span>
+              <span>{{ item.uploaderName }}</span>
+            </div>
+          </div>
+          <div class="resource-actions">
+            <el-button size="small" v-if="isFolder(item)" @click="openFolder(item)">打开</el-button>
+            <el-button size="small" v-if="item.type === 'link'" @click="openLink(item)">访问</el-button>
+            <el-button size="small" v-if="isFile(item)" @click="downloadFile(item)">下载</el-button>
+            <el-button size="small" type="danger" @click="deleteResourceItem(item.id)">删除</el-button>
+          </div>
         </div>
       </div>
     </el-card>
@@ -60,21 +100,53 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 上传文件弹窗 -->
+    <el-dialog v-model="uploadDialog" title="上传文件" width="500">
+      <el-upload
+          ref="uploadRef"
+          :action="uploadAction"
+          :data="uploadData"
+          :headers="uploadHeaders"
+          :on-success="handleUploadSuccess"
+          :on-error="handleUploadError"
+          :before-upload="beforeUpload"
+          :limit="1"
+          v-model:file-list="fileList"
+          :auto-upload="false"
+      >
+        <el-button type="primary">选择文件</el-button>
+        <template #tip>
+          <div class="el-upload__tip">
+            支持 Word、PDF、PPT、Excel、图片等文件，单个文件不超过 50MB
+          </div>
+        </template>
+      </el-upload>
+      <template #footer>
+        <el-button @click="uploadDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitUpload" :disabled="fileList.length === 0">
+          开始上传
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Folder, Link, Document } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 // 引入接口方法
-import { getResourceTree, createFolder, addLink } from '@/api/resource'
+import { getResourceTree, createFolder, addLink, downloadResource, deleteResource } from '@/api/resource'
 
 // 路由实例
 const route = useRoute()
 // 弹窗控制
 const folderDialog = ref(false)
 const linkDialog = ref(false)
+const uploadDialog = ref(false)
+const uploadRef = ref()
 // 表单数据
 const form = ref({
   folderName: '',
@@ -83,51 +155,99 @@ const form = ref({
 })
 // 资源列表
 const resourceList = ref([])
+// 课程列表
+const courseList = ref([])
+// 选中的课程ID
+const selectedCourseId = ref(null)
+// 当前父文件夹ID
+const currentParentId = ref('0')
+// 面包屑导航
+const breadcrumbs = ref([])
+// 文件上传
+const fileList = ref([])
+const uploadAction = ref('http://localhost:8080/resource/upload')
+const uploadData = ref({})
+const uploadHeaders = ref({})
 
 // 获取课程ID（从路由参数/存储中获取，需根据实际业务调整）
 const getCourseId = () => {
   // 从路由参数获取
-  const courseId = route.query.courseId || localStorage.getItem('currentCourseId')
+  let courseId = route.query.courseId || localStorage.getItem('currentCourseId')
 
   console.log('========== 获取 courseId ==========')
   console.log('route.query.courseId:', route.query.courseId)
   console.log('localStorage currentCourseId:', localStorage.getItem('currentCourseId'))
-  console.log('最终 courseId:', courseId)
-  console.log('courseId 类型:', typeof courseId)
 
   // 如果获取到的是字符串，转为数字
   if (courseId) {
     const numId = Number(courseId)
-    if (!isNaN(numId)) {
+    if (!isNaN(numId) && numId > 0) {
+      console.log('最终 courseId:', numId)
       return numId
     }
   }
 
-  // 如果没有有效的 courseId，使用默认值或提示
-  console.warn('没有有效的 courseId，使用默认值 1')
-  return 1  // 或者弹窗提示用户选择课程
+  // 如果没有有效的 courseId，尝试从用户已创建的课程中选择第一个
+  console.warn('没有有效的 courseId，需要用户选择课程')
+  return null
+}
+
+// 获取用户信息
+const getUserInfo = () => {
+  try {
+    const userInfoStr = localStorage.getItem('userInfo')
+    if (userInfoStr) {
+      return JSON.parse(userInfoStr)
+    }
+  } catch (e) {
+    console.error('解析用户信息失败', e)
+  }
+  return null
+}
+
+// 获取教师课程列表
+const getTeacherCourses = async () => {
+  const userInfo = getUserInfo()
+  if (!userInfo || !userInfo.id) {
+    return []
+  }
+  try {
+    const res = await fetch(`http://localhost:8080/course/teacher/${userInfo.id}`)
+    const data = await res.json()
+    if (data.code === 200 && data.data) {
+      return data.data
+    }
+  } catch (e) {
+    console.error('获取课程列表失败', e)
+  }
+  return []
 }
 
 // 初始化：获取资源列表
 const initResourceList = async () => {
-  const courseId = getCourseId()
+  // 确保 parentId 有默认值
+  if (!currentParentId.value) {
+    currentParentId.value = '0'
+  }
+  
+  const courseId = selectedCourseId.value || getCourseId()
   console.log('========== 初始化资源列表 ==========')
   console.log('最终使用的 courseId:', courseId)
+  console.log('当前 parentId:', currentParentId.value)
 
   if (!courseId || isNaN(courseId)) {
-    ElMessage.warning('请先选择课程')
+    resourceList.value = []
     return
   }
 
   try {
-    // 确保 courseId 是数字
     const id = Number(courseId)
-    console.log('请求参数 id:', id)
+    const parentId = currentParentId.value || '0'
+    console.log('请求参数 id:', id, 'parentId:', parentId)
 
-    const res = await getResourceTree(id, 1, 10)
+    const res = await getResourceTree(id, 1, 10, parentId)
     console.log('返回数据:', res)
 
-    // 处理返回数据
     if (res && res.code === 200) {
       resourceList.value = res.data || []
     } else if (res && Array.isArray(res.data)) {
@@ -137,11 +257,60 @@ const initResourceList = async () => {
     }
 
     if (resourceList.value.length === 0) {
-      ElMessage.info('暂无资料数据')
+      console.log('暂无资料数据，当前目录:', parentId)
     }
   } catch (error) {
     console.error('请求失败:', error)
     ElMessage.error('获取资源列表失败')
+  }
+}
+
+// 课程选择变化
+const onCourseChange = (courseId) => {
+  console.log('========== 课程选择变化 ==========')
+  console.log('选中的 courseId:', courseId)
+  
+  if (courseId) {
+    // 重置文件夹导航
+    currentParentId.value = '0'
+    breadcrumbs.value = []
+    // 保存到 localStorage
+    localStorage.setItem('currentCourseId', courseId)
+    // 获取课程号
+    const course = courseList.value.find(c => c.id === courseId)
+    if (course) {
+      localStorage.setItem('currentCourseNo', course.courseNo)
+      console.log('保存课程号:', course.courseNo)
+    }
+    // 刷新资源列表
+    initResourceList()
+  }
+}
+
+// 加载课程列表
+const loadCourseList = async () => {
+  const userInfo = getUserInfo()
+  if (!userInfo || !userInfo.id) {
+    ElMessage.warning('请重新登录')
+    return
+  }
+  try {
+    const res = await fetch(`http://localhost:8080/course/teacher/${userInfo.id}`)
+    const data = await res.json()
+    if (data.code === 200 && data.data) {
+      courseList.value = data.data
+      console.log('========== 加载课程列表 ==========')
+      console.log('课程数量:', courseList.value.length)
+      
+      // 如果只有一门课程，自动选中
+      if (courseList.value.length === 1) {
+        selectedCourseId.value = courseList.value[0].id
+        onCourseChange(selectedCourseId.value)
+      }
+    }
+  } catch (e) {
+    console.error('加载课程列表失败', e)
+    ElMessage.error('加载课程列表失败')
   }
 }
 
@@ -158,7 +327,7 @@ const validateFolderName = () => {
 
 // 提交新建文件夹
 const submitFolder = async () => {
-  const courseId = getCourseId()
+  const courseId = selectedCourseId.value || getCourseId()
   if (!courseId) {
     ElMessage.warning('请先选择课程')
     return
@@ -168,33 +337,53 @@ const submitFolder = async () => {
     ElMessage.warning('请输入文件夹名称')
     return
   }
-  // 补充后端要求的参数（需从用户信息/路由中获取，示例用localStorage）
-  const courseNo = localStorage.getItem('currentCourseNo') // 课程编号
-  const uploaderId = localStorage.getItem('userId') // 上传人ID
-  const uploaderName = localStorage.getItem('userName') // 上传人姓名
-  if (!courseNo || !uploaderId || !uploaderName) {
-    ElMessage.warning('缺少课程编号/用户信息，请重新登录')
+  
+  const userInfo = getUserInfo()
+  if (!userInfo || !userInfo.id) {
+    ElMessage.warning('请重新登录')
     return
   }
+  
+  // 获取当前课程的课程号
+  const courseNo = localStorage.getItem('currentCourseNo')
+  if (!courseNo) {
+    ElMessage.warning('请先选择课程')
+    return
+  }
+  
+  const loading = ElMessage({ message: '创建中...', type: 'warning', duration: 0 })
+  
   try {
-    const loading = ElMessage.loading({ message: '创建中...', duration: 0 })
-    // 传所有后端要求的参数
-    await createFolder({
-      courseId,
-      courseNo,
-      folderName,
-      parentId: '', // 根文件夹可传空，根据业务调整
-      uploaderId,
-      uploaderName
+    console.log('========== 创建文件夹 ==========')
+    console.log('courseId:', courseId, 'type:', typeof courseId)
+    console.log('courseNo:', courseNo)
+    console.log('folderName:', folderName)
+    console.log('uploaderId:', userInfo.id, 'type:', typeof userInfo.id)
+    console.log('uploaderName:', userInfo.name || userInfo.username)
+    
+    const res = await createFolder({
+      courseId: Number(courseId),
+      courseNo: String(courseNo),
+      folderName: String(folderName),
+      parentId: '',
+      uploaderId: String(userInfo.id),
+      uploaderName: String(userInfo.name || userInfo.username)
     })
+    console.log('创建结果:', res)
+    
     loading.close()
-    ElMessage.success('文件夹创建成功')
-    folderDialog.value = false
-    form.value.folderName = ''
-    initResourceList()
+    if (res && res.code === 200) {
+      ElMessage.success('文件夹创建成功')
+      folderDialog.value = false
+      form.value.folderName = ''
+      initResourceList()
+    } else {
+      ElMessage.error(res?.message || '创建文件夹失败')
+    }
   } catch (error) {
-    const errMsg = error.msg || error.message || '接口异常'
-    ElMessage.error('创建文件夹失败：' + errMsg)
+    loading.close()
+    console.error('创建文件夹失败:', error)
+    ElMessage.error('创建文件夹失败：' + (error.message || '接口异常'))
   }
 }
 
@@ -217,7 +406,7 @@ const validateLinkUrl = () => {
 
 // 提交添加外链
 const submitLink = async () => {
-  const courseId = getCourseId()
+  const courseId = selectedCourseId.value || getCourseId()
   if (!courseId) {
     ElMessage.warning('请先选择课程')
     return
@@ -235,53 +424,235 @@ const submitLink = async () => {
     ElMessage.warning('请输入有效的HTTPS/HTTP链接')
     return
   }
-  // 补充后端要求的参数
-  const courseNo = localStorage.getItem('currentCourseNo')
-  const uploaderId = localStorage.getItem('userId')
-  const uploaderName = localStorage.getItem('userName')
-  if (!courseNo || !uploaderId || !uploaderName) {
-    ElMessage.warning('缺少课程编号/用户信息，请重新登录')
+  
+  const userInfo = getUserInfo()
+  if (!userInfo || !userInfo.id) {
+    ElMessage.warning('请重新登录')
     return
   }
+  
+  // 获取当前课程的课程号
+  const courseNo = localStorage.getItem('currentCourseNo')
+  if (!courseNo) {
+    ElMessage.warning('请先选择课程')
+    return
+  }
+  
+  const loading = ElMessage({ message: '添加中...', type: 'warning', duration: 0 })
+  
   try {
-    await addLink({
-      courseId,
-      courseNo, // 补充courseNo
-      name: linkName, // 匹配后端DTO的name字段（不是linkName）
-      url: linkUrl, // 匹配后端DTO的url字段（不是linkUrl）
-      parentId: '', // 根文件夹传空
-      uploaderId,
-      uploaderName
+    console.log('========== 添加外链 ==========')
+    const res = await addLink({
+      courseId: Number(courseId),
+      courseNo: String(courseNo),
+      name: String(linkName),
+      url: String(linkUrl),
+      parentId: '',
+      uploaderId: String(userInfo.id),
+      uploaderName: String(userInfo.name || userInfo.username)
     })
-    ElMessage.success('外链添加成功')
-    linkDialog.value = false
-    initResourceList()
+    console.log('添加结果:', res)
+    
+    loading.close()
+    if (res && res.code === 200) {
+      ElMessage.success('外链添加成功')
+      linkDialog.value = false
+      initResourceList()
+    } else {
+      ElMessage.error(res?.message || '添加外链失败')
+    }
   } catch (error) {
-    ElMessage.error('添加外链失败：' + (error.msg || error.message || '接口异常'))
+    loading.close()
+    console.error('添加外链失败:', error)
+    ElMessage.error('添加外链失败：' + (error.message || '接口异常'))
   }
 }
 
 // 新增删除方法
 const deleteResourceItem = async (resId) => {
+  console.log('========== 删除资源 ==========')
+  console.log('资源ID:', resId)
+  
   try {
     await ElMessageBox.confirm('确定删除该资源吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
-    await deleteResource(resId) // 调用resource.js的deleteResource
-    ElMessage.success('删除成功')
-    initResourceList()
+    
+    console.log('用户确认删除，准备发送请求')
+    const res = await deleteResource(resId)
+    console.log('删除响应:', res)
+    
+    if (res && res.code === 200) {
+      ElMessage.success('删除成功')
+      // 返回根目录并刷新
+      goHome()
+    } else {
+      ElMessage.error(res?.message || '删除失败')
+    }
   } catch (error) {
-    if (error !== 'cancel') { // 排除取消弹窗的情况
+    console.error('删除错误:', error)
+    if (error !== 'cancel') {
       ElMessage.error('删除失败：' + (error.msg || error.message || '接口异常'))
     }
   }
 }
 
+// 打开文件夹
+const openFolder = (item) => {
+  console.log('打开文件夹:', item)
+  if (item.id) {
+    currentParentId.value = String(item.id)
+    breadcrumbs.value.push(item)
+    initResourceList()
+  }
+}
+
+// 返回根目录
+const goHome = () => {
+  currentParentId.value = '0'
+  breadcrumbs.value = []
+  initResourceList()
+}
+
+// 跳转到指定文件夹
+const goToFolder = (item) => {
+  const index = breadcrumbs.value.findIndex(b => b.id === item.id)
+  if (index !== -1) {
+    breadcrumbs.value = breadcrumbs.value.slice(0, index + 1)
+    currentParentId.value = String(item.id)
+    initResourceList()
+  }
+}
+
+// 访问外链
+const openLink = (item) => {
+  if (item.url) {
+    window.open(item.url, '_blank')
+  } else {
+    ElMessage.warning('链接地址无效')
+  }
+}
+
+// 下载文件
+const downloadFile = (item) => {
+  if (item.id) {
+    downloadResource(item.id)
+  } else {
+    ElMessage.warning('文件ID无效')
+  }
+}
+
+// 判断是否是文件夹
+const isFolder = (item) => {
+  if (item.type === 'folder') return true
+  if (item.isFolder === 1) return true
+  if (item.folderName && !item.type) return true
+  return false
+}
+
+// 判断是否是文件
+const isFile = (item) => {
+  if (item.type === 'file') return true
+  if (item.isFolder === 0 && item.type !== 'link') return true
+  return false
+}
+
+// 获取资源类型文本
+const getResourceTypeText = (item) => {
+  if (isFolder(item)) return '文件夹'
+  if (item.type === 'link') return '外链'
+  if (isFile(item)) return '文件'
+  return '未知'
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+// 打开上传弹窗
+const openUploadDialog = () => {
+  const userInfo = getUserInfo()
+  const courseNo = localStorage.getItem('currentCourseNo')
+  
+  if (!userInfo || !userInfo.id) {
+    ElMessage.warning('请重新登录')
+    return
+  }
+  
+  if (!selectedCourseId.value || !courseNo) {
+    ElMessage.warning('请先选择课程')
+    return
+  }
+  
+  // 设置上传请求头
+  uploadHeaders.value = {
+    Authorization: localStorage.getItem('token') || '',
+    userId: String(userInfo.id)
+  }
+  
+  fileList.value = []
+  uploadDialog.value = true
+}
+
+// 上传前校验
+const beforeUpload = (file) => {
+  const maxSize = 50 * 1024 * 1024 // 50MB
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 50MB')
+    return false
+  }
+  return true
+}
+
+// 提交上传
+const submitUpload = async () => {
+  const userInfo = getUserInfo()
+  const courseNo = localStorage.getItem('currentCourseNo')
+  
+  uploadData.value = {
+    courseId: Number(selectedCourseId.value),
+    courseNo: String(courseNo),
+    parentId: currentParentId.value,
+    uploaderId: String(userInfo.id),
+    uploaderName: String(userInfo.name || userInfo.username)
+  }
+  
+  console.log('========== 上传文件 ==========')
+  console.log('上传参数:', uploadData.value)
+  console.log('当前目录:', currentParentId.value)
+  
+  uploadRef.value.submit()
+}
+
+// 上传成功
+const handleUploadSuccess = (response, file) => {
+  console.log('上传成功:', response)
+  if (response.code === 200) {
+    ElMessage.success('文件上传成功')
+    uploadDialog.value = false
+    fileList.value = []
+    initResourceList()
+  } else {
+    ElMessage.error(response.message || '上传失败')
+  }
+}
+
+// 上传失败
+const handleUploadError = (error, file) => {
+  console.error('上传失败:', error)
+  ElMessage.error('文件上传失败')
+}
+
 // 页面挂载时初始化
 onMounted(() => {
-  initResourceList()
+  loadCourseList()
 })
 </script>
 
@@ -292,6 +663,10 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: 15px;
+  flex-wrap: wrap;
+}
+.course-selector {
+  min-width: 200px;
 }
 .btn-group { display: flex; gap: 10px; }
 .resource-list {
@@ -299,9 +674,40 @@ onMounted(() => {
   padding: 10px;
 }
 .resource-item {
-  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  padding: 12px;
   border: 1px solid #e6e6e6;
   border-radius: 4px;
   margin-bottom: 8px;
+  transition: background-color 0.2s;
+}
+.resource-item:hover {
+  background-color: #f5f7fa;
+}
+.resource-icon {
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+}
+.resource-info {
+  flex: 1;
+}
+.resource-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+.resource-meta {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+.resource-meta span {
+  margin-right: 8px;
+}
+.resource-actions {
+  display: flex;
+  gap: 8px;
 }
 </style>

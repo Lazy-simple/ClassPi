@@ -19,13 +19,16 @@ service.interceptors.request.use(config => {
     console.log('token:', token ? '存在' : '不存在')
     console.log('userInfoStr:', userInfoStr)
 
-    // 从 userInfo 中解析 userId
+    // 从 userInfo 中解析 userId 和 identity
     let userId = null
+    let identity = null
     if (userInfoStr) {
         try {
             const userInfo = JSON.parse(userInfoStr)
             userId = userInfo.id || userInfo.userId
+            identity = userInfo.identity || userInfo.role
             console.log('从 userInfo 解析 userId:', userId)
+            console.log('从 userInfo 解析 identity:', identity)
         } catch (e) {
             console.error('解析 userInfo 失败:', e)
         }
@@ -47,8 +50,12 @@ service.interceptors.request.use(config => {
         config.headers.Authorization = token
     }
     if (userId) {
-        config.headers.userId = String(userId)  // 确保是字符串
+        config.headers.userId = String(userId)
         console.log('设置 userId header:', userId)
+    }
+    if (identity) {
+        config.headers.identity = String(identity)
+        console.log('设置 identity header:', identity)
     }
 
     console.log('最终 Headers:', config.headers)
