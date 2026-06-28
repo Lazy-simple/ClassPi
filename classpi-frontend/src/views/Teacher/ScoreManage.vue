@@ -23,6 +23,7 @@
 import { ref, onMounted } from 'vue';
 import { getScoreList } from '@/api/homework';
 import { useUserStore } from '@/store/user';
+import { ElMessage } from 'element-plus';
 
 const loading = ref(false);
 const scoreList = ref([]);
@@ -32,16 +33,23 @@ const loadScore = async () => {
   loading.value = true;
   try {
     const teacherId = userStore.userInfo?.id;
-    console.log('=== 加载成绩列表 ===');
-    console.log('teacherId:', teacherId);
-    const res = await getScoreList({ teacherId, page: 1, pageSize: 10 });
-    console.log('响应数据:', res);
+    const res = await getScoreList({ teacherId, page: 1, pageSize: 20 });
     if (res.code === 200) {
-      scoreList.value = res.data?.records || [];
+      const records = res.data?.records || [];
+      // 后端返回的数据直接映射到表格
+      scoreList.value = records.map(item => ({
+        studentName: item.studentName || '未知学生',
+        studentNo: item.studentUsername || '--',  // 如果后端有学号字段就用
+        homeworkName: item.homeworkTitle || '未命名作业',
+        score: item.score || 0,
+        comment: item.correctionContent || ''
+      }));
+    } else {
+      ElMessage.error(res.msg || '加载成绩失败');
     }
   } catch (error) {
     console.error('加载成绩失败:', error);
-    scoreList.value = [];
+    ElMessage.error('网络异常，请稍后重试');
   } finally {
     loading.value = false;
   }

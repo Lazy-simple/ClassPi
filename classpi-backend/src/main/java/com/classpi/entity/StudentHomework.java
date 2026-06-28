@@ -11,6 +11,7 @@ public class StudentHomework {
     private Long id;
     private Long homeworkId;
     private Long studentId;
+    private Integer score;
     private String submitContent;
     private String fileUrl;
     private String fileName;

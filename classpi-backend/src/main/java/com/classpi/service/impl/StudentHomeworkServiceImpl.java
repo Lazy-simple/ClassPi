@@ -66,9 +66,13 @@ public class StudentHomeworkServiceImpl extends ServiceImpl<StudentHomeworkMappe
         if (submit == null) {
             return Result.error("提交记录不存在");
         }
+
+        // ✅ 只保存评语，不加"分数："前缀
         submit.setCorrectionContent(dto.getCorrectionContent());
         submit.setCorrectionTime(LocalDateTime.now());
         submit.setCorrected(1);
+        submit.setScore(dto.getScore());  // 分数单独存
+
         boolean update = this.updateById(submit);
         return update ? Result.success("批改完成") : Result.error("批改失败");
     }

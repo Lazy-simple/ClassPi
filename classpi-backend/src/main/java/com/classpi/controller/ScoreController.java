@@ -89,7 +89,8 @@ public class ScoreController {
                     item.put("homeworkTitle", homework.getTitle());
                 }
 
-                item.put("score", sh.getCorrectionContent());
+                item.put("score", sh.getScore());
+                item.put("correctionContent", sh.getCorrectionContent());
                 item.put("submitTime", sh.getSubmitTime());
                 item.put("correctionTime", sh.getCorrectionTime());
 
