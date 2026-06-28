@@ -5,6 +5,14 @@ export function getCourseList() {
   return request({ url: '/course/list', method: 'get' })
 }
 
+// 获取教师课程列表
+export function getTeacherCourses(teacherId) {
+  return request({
+    url: `/course/teacher/${teacherId}`,
+    method: 'get'
+  })
+}
+
 // 【核心修复】获取学生已选课程
 // 后端定义：@GetMapping("/student/{studentId}")
 // 必须使用模板字符串将 ID 拼接到 URL 路径中，而不是作为 params 传递
