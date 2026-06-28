@@ -75,8 +75,11 @@ router.beforeEach((to, from, next) => {
   console.log('目标路径:', to.path);
 
   // 1. 无token跳登录
+  // 1. 无token跳登录
   if (!token) {
-    if (to.path === "/login") {
+    // ✅ 白名单：不需要登录就能访问的页面
+    const whiteList = ['/login', '/register', '/forgot-password']
+    if (whiteList.includes(to.path)) {
       next();
     } else {
       ElMessage.warning('请先登录');

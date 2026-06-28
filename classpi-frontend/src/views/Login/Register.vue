@@ -95,6 +95,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import request from '@/utils/request'  // ✅ 添加
 
 const router = useRouter()
 const loading = ref(false)
@@ -108,22 +109,18 @@ const form = reactive({
   identity: 'teacher',
   name: '',
   school: '',
-  captchaAnswer: '' // 存储用户输入的计算结果
+  captchaAnswer: ''
 })
 
-// 模拟验证码图片链接
+// 验证码图片链接 - 指向后端
 const captchaImg = ref('')
 
-// 【新增】生成随机算术题并获取图片
 const refreshCaptcha = () => {
-  // 这里使用 picsum 作为占位图，实际开发中请替换为你的后端接口，例如: /api/captcha?t=...
-  // 加上时间戳防止浏览器缓存
-  captchaImg.value = `https://picsum.photos/120/40?random=${Date.now()}`
+  // ✅ 改成真实后端接口
+  captchaImg.value = `http://localhost:8080/captcha?t=${Date.now()}`
 }
 
-onMounted(() => {
-  refreshCaptcha()
-})
+onMounted(refreshCaptcha)
 
 // 表单校验规则
 const rules = reactive({
@@ -135,23 +132,43 @@ const rules = reactive({
   captchaAnswer: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
 })
 
-// 注册逻辑
+// ✅ 注册逻辑 - 调用真实后端
 const handleRegister = async () => {
   if (!formRef.value) return
 
-  await formRef.value.validate((valid) => {
+  await formRef.value.validate(async (valid) => {
     if (valid) {
       if (form.password !== form.confirmPwd) {
         return ElMessage.warning('两次输入的密码不一致')
       }
 
       loading.value = true
-      // 模拟请求延迟
-      setTimeout(() => {
+      try {
+        // ✅ 注册数据，匹配后端 RegisterDTO
+        const res = await request.post('/user/register', {
+          username: form.account,
+          password: form.password,
+          phone: form.account,
+          name: form.name,
+          school: form.school,
+          identity: form.identity,      // ✅ teacher / student
+          studentId: ''                 // 学生可以填学号，教师可以不填
+          // captcha 暂时去掉，后端还没实现验证码校验
+        })
+        if (res.code === 200) {
+          ElMessage.success('注册成功！请登录')
+          router.push('/login')
+        } else {
+          ElMessage.error(res.msg || '注册失败')
+          refreshCaptcha()
+        }
+      } catch (error) {
+        console.error('注册失败:', error)
+        ElMessage.error('网络异常，请稍后重试')
+        refreshCaptcha()
+      } finally {
         loading.value = false
-        ElMessage.success('注册成功！请登录')
-        router.push('/login')
-      }, 1500)
+      }
     }
   })
 }
