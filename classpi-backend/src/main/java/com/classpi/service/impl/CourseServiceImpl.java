@@ -192,29 +192,44 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional
     public Result dropCourse(String studentId, Integer courseId) {
-        QueryWrapper<StudentCourse> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("student_id", studentId);
-        queryWrapper.eq("course_id", courseId);
-        StudentCourse studentCourse = studentCourseMapper.selectOne(queryWrapper);
+        System.out.println("========== dropCourse ==========");
+        System.out.println("studentId: " + studentId);
+        System.out.println("courseId: " + courseId);
 
-        if (studentCourse == null) {
-            return Result.error("您未选该课程");
+        try {
+            QueryWrapper<StudentCourse> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("student_id", studentId);
+            queryWrapper.eq("course_id", courseId);
+            queryWrapper.eq("status", 1);  // 只查已选状态的
+
+            // 用 selectList 代替 selectOne
+            List<StudentCourse> studentCourses = studentCourseMapper.selectList(queryWrapper);
+
+            if (studentCourses == null || studentCourses.isEmpty()) {
+                return Result.error("您未选该课程");
+            }
+
+            // 取第一条，或者全部更新
+            StudentCourse studentCourse = studentCourses.get(0);
+
+            // 如果有多个，全部更新
+            for (StudentCourse sc : studentCourses) {
+                sc.setStatus(2);
+                studentCourseMapper.updateById(sc);
+            }
+
+            // 更新课程人数
+            Course course = courseMapper.selectById(courseId);
+            if (course != null && course.getEnrolledCount() > 0) {
+                course.setEnrolledCount(course.getEnrolledCount() - studentCourses.size());
+                courseMapper.updateById(course);
+            }
+
+            return Result.success("退选成功");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("退选失败：" + e.getMessage());
         }
-
-        if (studentCourse.getStatus() != 1) {
-            return Result.error("无法退选，当前状态不允许");
-        }
-
-        studentCourse.setStatus(2);
-        studentCourseMapper.updateById(studentCourse);
-
-        Course course = courseMapper.selectById(courseId);
-        if (course != null && course.getEnrolledCount() > 0) {
-            course.setEnrolledCount(course.getEnrolledCount() - 1);
-            courseMapper.updateById(course);
-        }
-
-        return Result.success("退选成功");
     }
 
     @Override
