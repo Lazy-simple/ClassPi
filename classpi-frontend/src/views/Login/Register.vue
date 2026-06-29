@@ -112,12 +112,21 @@ const form = reactive({
   captchaAnswer: ''
 })
 
-// 验证码图片链接 - 指向后端
+// 验证码图片和ID
 const captchaImg = ref('')
+const captchaId = ref('')
 
-const refreshCaptcha = () => {
-  // ✅ 改成真实后端接口
-  captchaImg.value = `http://localhost:8080/captcha?t=${Date.now()}`
+const refreshCaptcha = async () => {
+  try {
+    const res = await fetch(`http://localhost:8080/captcha?t=${Date.now()}`)
+    const data = await res.json()
+    if (data.code === 200 && data.data) {
+      captchaId.value = data.data.captchaId
+      captchaImg.value = data.data.image
+    }
+  } catch (error) {
+    console.error('获取验证码失败:', error)
+  }
 }
 
 onMounted(refreshCaptcha)
@@ -144,16 +153,29 @@ const handleRegister = async () => {
 
       loading.value = true
       try {
-        // ✅ 注册数据，匹配后端 RegisterDTO
+        // 先验证验证码
+        const captchaRes = await fetch('http://localhost:8080/captcha/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `captchaId=${captchaId.value}&answer=${form.captchaAnswer}`
+        })
+        const captchaData = await captchaRes.json()
+        if (captchaData.code !== 200) {
+          ElMessage.error('验证码错误，请重新输入')
+          refreshCaptcha()
+          loading.value = false
+          return
+        }
+
+        // 注册数据，匹配后端 RegisterDTO
         const res = await request.post('/user/register', {
           username: form.account,
           password: form.password,
           phone: form.account,
           name: form.name,
           school: form.school,
-          identity: form.identity,      // ✅ teacher / student
-          studentId: ''                 // 学生可以填学号，教师可以不填
-          // captcha 暂时去掉，后端还没实现验证码校验
+          identity: form.identity,      // teacher / student
+          studentId: ''
         })
         if (res.code === 200) {
           ElMessage.success('注册成功！请登录')
