@@ -100,7 +100,7 @@ public class TopicServiceImpl implements TopicService {
             System.out.println("数据库中的 authorId: " + topic.getAuthorId());
 
             // ✅ 只能删除自己发布的话题（无论是教师还是学生）
-            if (!topic.getAuthorId().equals(authorId)) {
+            if (!topic.getAuthorId().equals(String.valueOf(authorId))) {
                 return Result.error("无权限删除该话题");
             }
 

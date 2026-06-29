@@ -18,16 +18,21 @@ public class TopicController {
     private TopicService topicService;
 
     @PostMapping("/create")
-    public Result createTopic(@RequestBody @Validated TopicCreateDTO dto) {
+    public Result createTopic(@RequestBody @Validated TopicCreateDTO dto,
+                              @RequestHeader(value = "userId", required = false) String userId) {
+        // ✅ 用请求头里的 userId 覆盖 dto 里的 authorId
+        if (userId == null) {
+            return Result.error("用户未登录");
+        }
         return topicService.createTopic(
-            dto.getCourseId(),
-            dto.getCourseNo(),
-            dto.getTitle(),
-            dto.getContent(),
-            dto.getAuthorId(),
-            dto.getAuthorName(),
-            dto.getAuthorType(),
-            dto.getIsAnonymous()
+                dto.getCourseId(),
+                dto.getCourseNo(),
+                dto.getTitle(),
+                dto.getContent(),
+                userId,  // ✅ 用这个
+                dto.getAuthorName(),
+                dto.getAuthorType(),
+                dto.getIsAnonymous()
         );
     }
 

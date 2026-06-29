@@ -39,4 +39,13 @@ public interface CourseService {
 
     // 根据课程id查询所有已选课学生
     Result<List<StudentCourse>> getCourseAllStudent(Integer courseId);
+
+    // 归档/取消归档课程
+    Result archiveCourse(Integer id, Boolean archived);
+
+    // 获取教师的课程列表（可包含归档）
+    Result getTeacherCourses(String teacherId, Boolean includeArchived);
+
+    // 获取学生已选课程列表（可包含归档）
+    Result getStudentCourses(String studentId, Boolean includeArchived);
 }

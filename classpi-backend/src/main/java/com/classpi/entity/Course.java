@@ -21,6 +21,7 @@ public class Course {
     private Integer credit; // 学分
     private Integer capacity; // 选课容量
     private Integer enrolledCount; // 已选人数
+    private Integer status;
     
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

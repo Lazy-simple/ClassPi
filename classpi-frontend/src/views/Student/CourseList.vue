@@ -323,8 +323,25 @@ const handleDrop = async (sc) => {
 };
 const goToCourseDetail = (sc) => {
   const realCourseId = sc.courseId || sc.id;
-  router.push(`/main/course-detail/${realCourseId}`);
+  const courseNo = sc.courseNo || '';  // ✅ 取 courseNo
+
+  console.log('========== 跳转课程详情 ==========')
+  console.log('courseId:', realCourseId)
+  console.log('courseNo:', courseNo)
+
+  // ✅ 保存到 localStorage
+  localStorage.setItem('currentCourseId', realCourseId)
+  localStorage.setItem('currentCourseNo', courseNo)
+
+  router.push({
+    path: `/main/course-detail/${realCourseId}`,
+    query: {
+      courseId: realCourseId,
+      courseNo: courseNo
+    }
+  });
 };
+
 onMounted(() => {
   loadPinnedCourses();
   loadCourses();
