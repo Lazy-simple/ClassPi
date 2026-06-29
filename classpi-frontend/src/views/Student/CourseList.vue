@@ -15,6 +15,7 @@
       </div>
     </div>
 
+    <!-- 置顶课程 - 保持原样 -->
     <div v-if="pinnedCourses.length > 0" class="section-block">
       <div class="section-title">
         <span class="title-dot warning"></span>
@@ -50,44 +51,61 @@
       </div>
     </div>
 
+    <!-- 已选课程（可拖拽部分，已修复） -->
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot"></span>
-        <h3>已选课程 ({{ unpinnedCourses.length }})</h3>
+        <h3>已选课程 ({{ unpinnedList.length }})</h3>
       </div>
-      <div v-if="unpinnedCourses.length === 0" class="empty-tip">
+      <div v-if="unpinnedList.length === 0" class="empty-tip">
         <el-empty description="暂无已选课程，快去下方挑选吧！" />
       </div>
-      <div v-else class="course-grid">
-        <div class="course-card selected-card" v-for="sc in unpinnedCourses" :key="sc.id || sc.courseId">
-          <div class="card-tag tag-selected">已选</div>
-          <div class="card-content" @click="goToCourseDetail(sc)">
-            <h4 class="course-name">{{ sc.courseName || sc.name }}</h4>
-            <p class="course-no">编号：{{ sc.courseNo }}</p>
-            <div class="info-row">
-              <el-icon><User /></el-icon> <span>{{ sc.teacherName || '未知教师' }}</span>
+      <!-- 【关键修复】
+        1. 用 v-model 绑定 ref 变量 unpinnedList，而非 computed
+        2. 添加 itemKey 绑定，用课程ID作为唯一标识
+      -->
+      <draggable
+        v-else
+        v-model="unpinnedList"
+        item-key="id"
+        ghost-class="drag-ghost"
+        chosen-class="drag-chosen"
+        drag-class="drag-active"
+        @change="onSortChange"
+        class="course-grid"
+      >
+        <template #item="{ element }">
+          <div class="course-card selected-card" :key="element.id || element.courseId">
+            <div class="card-tag tag-selected">已选</div>
+            <div class="card-content" @click="goToCourseDetail(element)">
+              <h4 class="course-name">{{ element.courseName || element.name }}</h4>
+              <p class="course-no">编号：{{ element.courseNo }}</p>
+              <div class="info-row">
+                <el-icon><User /></el-icon> <span>{{ element.teacherName || '未知教师' }}</span>
+              </div>
+              <div class="info-row">
+                <el-icon><CreditCard /></el-icon> <span>{{ element.credit || 0 }} 学分</span>
+              </div>
             </div>
-            <div class="info-row">
-              <el-icon><CreditCard /></el-icon> <span>{{ sc.credit || 0 }} 学分</span>
+            <div class="card-action">
+              <el-button type="primary" size="small" @click="goToCourseDetail(element)">
+                <el-icon><ArrowRight /></el-icon> 进入课程
+              </el-button>
+              <div class="card-action-bottom">
+                <el-button size="small" text type="primary" @click.stop="togglePin(element)">
+                  置顶
+                </el-button>
+                <el-button size="small" text type="danger" @click.stop="handleDrop(element)">
+                  退选
+                </el-button>
+              </div>
             </div>
           </div>
-          <div class="card-action">
-            <el-button type="primary" size="small" @click="goToCourseDetail(sc)">
-              <el-icon><ArrowRight /></el-icon> 进入课程
-            </el-button>
-            <div class="card-action-bottom">
-              <el-button size="small" text type="primary" @click.stop="togglePin(sc)">
-                置顶
-              </el-button>
-              <el-button size="small" text type="danger" @click.stop="handleDrop(sc)">
-                退选
-              </el-button>
-            </div>
-          </div>
-        </div>
-      </div>
+        </template>
+      </draggable>
     </div>
-    <!-- 第二部分：可选课程池 仅加一个按钮，原有全部保留 -->
+
+    <!-- 可选课程部分保持原样 -->
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot primary"></span>
@@ -140,7 +158,6 @@
             >
               立即选课
             </el-button>
-            <!-- 【新增，不删除原有按钮】查看选课学生按钮 -->
             <el-button style="margin-top:8px;" plain size="small" @click="openStudentDialog(course)">
               查看选课学生
             </el-button>
@@ -149,7 +166,6 @@
       </div>
     </div>
 
-    <!-- 【全新追加弹窗，不改动上方任何代码】 -->
     <el-dialog v-model="studentDialogVisible" width="650" title="课程选课学生列表">
       <el-table :data="studentList" border>
         <el-table-column label="学生ID" prop="studentId" />
@@ -164,12 +180,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/store/user';
 import { getCourseList, getStudentCourses, selectCourse, dropCourse, getCourseAllStudent } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search, Clock, User, Collection, Check, UserFilled, CreditCard, ArrowRight } from '@element-plus/icons-vue';
+import draggable from 'vuedraggable';
+
 const userStore = useUserStore();
 const router = useRouter();
 const loading = ref(false);
@@ -179,6 +197,9 @@ const selectedCourses = ref([]);
 const pinnedCourseIds = ref([]);
 
 const PIN_KEY = 'student_pinned_courses';
+
+// 【关键修复】用 ref 来存可拖拽列表，而不是 computed
+const unpinnedList = ref([]);
 
 const loadPinnedCourses = () => {
   try {
@@ -215,6 +236,8 @@ const togglePin = (course) => {
     ElMessage.success('已置顶');
   }
   savePinnedCourses();
+  // 置顶后，更新列表
+  updateUnpinnedList();
 };
 
 const pinnedCourses = computed(() => {
@@ -234,7 +257,8 @@ const pinnedCourses = computed(() => {
   });
 });
 
-const unpinnedCourses = computed(() => {
+// 【新增】根据 selectedCourses 和置顶状态，更新 unpinnedList
+const updateUnpinnedList = () => {
   let courses = selectedCourses.value.filter(sc => !isPinned(sc));
   if (searchKeyword.value) {
     const kw = searchKeyword.value.toLowerCase();
@@ -244,10 +268,14 @@ const unpinnedCourses = computed(() => {
         (c.name && c.name.toLowerCase().includes(kw))
     );
   }
-  return courses;
-});
+  unpinnedList.value = courses;
+};
 
-// 原有计算属性、方法全部不动
+// 监听 selectedCourses 变化，更新 unpinnedList
+watch([selectedCourses, searchKeyword, pinnedCourseIds], () => {
+  updateUnpinnedList();
+}, { deep: true });
+
 const availableCourses = computed(() => {
   let courses = allCourses.value.filter(c => !selectedCourses.value.some(sc => sc.courseId === c.id));
   if (searchKeyword.value) {
@@ -273,6 +301,9 @@ const loadCourses = async () => {
     ]);
     if (allRes.code === 200) allCourses.value = allRes.data || [];
     if (selRes.code === 200) selectedCourses.value = selRes.data || [];
+    // 加载课程后，更新列表
+    updateUnpinnedList();
+    loadCourseOrder();
   } catch (error) {
     console.error("加载课程失败:", error);
     ElMessage.error('加载课程数据失败，请检查网络或联系管理员');
@@ -323,13 +354,8 @@ const handleDrop = async (sc) => {
 };
 const goToCourseDetail = (sc) => {
   const realCourseId = sc.courseId || sc.id;
-  const courseNo = sc.courseNo || '';  // ✅ 取 courseNo
+  const courseNo = sc.courseNo || '';
 
-  console.log('========== 跳转课程详情 ==========')
-  console.log('courseId:', realCourseId)
-  console.log('courseNo:', courseNo)
-
-  // ✅ 保存到 localStorage
   localStorage.setItem('currentCourseId', realCourseId)
   localStorage.setItem('currentCourseNo', courseNo)
 
@@ -342,23 +368,48 @@ const goToCourseDetail = (sc) => {
   });
 };
 
+// 【新增】拖拽排序回调
+const saveCourseOrder = () => {
+  try {
+    const orderIds = unpinnedList.value.map(c => c.courseId || c.id);
+    localStorage.setItem('student_course_order', JSON.stringify(orderIds));
+  } catch (e) {
+    console.error('保存课程排序失败:', e);
+  }
+};
+
+const loadCourseOrder = () => {
+  try {
+    const saved = localStorage.getItem('student_course_order');
+    if (saved) {
+      const orderIds = JSON.parse(saved);
+      unpinnedList.value.sort((a, b) => {
+        const aId = a.courseId || a.id;
+        const bId = b.courseId || b.id;
+        return orderIds.indexOf(aId) - orderIds.indexOf(bId);
+      });
+    }
+  } catch (e) {
+    console.error('读取课程排序失败:', e);
+  }
+};
+
+const onSortChange = () => {
+  saveCourseOrder();
+  ElMessage.success('课程排序已更新');
+};
+
 onMounted(() => {
   loadPinnedCourses();
   loadCourses();
 });
 
-// ==================== 下面全部是新增代码，原有不动 ====================
-// 弹窗控制变量
 const studentDialogVisible = ref(false)
 const studentList = ref([])
 
-// 打开弹窗、请求该课程全部学生
 const openStudentDialog = async (item) => {
   studentDialogVisible.value = true
   studentList.value = []
-  // 区分两种数据：
-  // 1. 可选课程：item.id 就是课程id
-  // 2. 我的已选课：item.courseId 才是课程真实主键
   const realCourseId = item.courseId || item.id
   try {
     const res = await getCourseAllStudent(realCourseId)
@@ -372,14 +423,13 @@ const openStudentDialog = async (item) => {
     studentList.value = []
   }
 }
-// 状态格式化：1已选 2退选
 const formatStatus = (row) => {
   return row.status === 1 ? "正常选课" : "已退选"
 }
 </script>
 
 <style scoped>
-/* 保持你原有的样式不变，这里省略以节省篇幅 */
+/* 原有样式保持不变，只添加拖拽状态样式 */
 .course-select-page { padding: 20px 40px; background-color: #f5f7fa; min-height: 100vh; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
 .page-title { font-size: 24px; color: #303133; font-weight: 600; }
@@ -422,5 +472,19 @@ const formatStatus = (row) => {
 .card-action-bottom .el-button {
   width: auto;
   padding: 4px 8px;
+}
+
+/* 拖拽状态样式 */
+.drag-ghost {
+  opacity: 0.4;
+  background: #e0eaff;
+  border: 2px dashed #4f46e5;
+}
+.drag-chosen {
+  box-shadow: 0 10px 30px rgba(79, 70, 229, 0.3);
+}
+.drag-active {
+  transform: scale(1.02);
+  box-shadow: 0 12px 35px rgba(79, 70, 229, 0.4);
 }
 </style>
