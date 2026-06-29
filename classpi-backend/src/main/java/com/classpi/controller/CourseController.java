@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/course")
@@ -18,115 +17,82 @@ public class CourseController {
     @Autowired
     private CourseService courseService;
 
+    // 创建课程（教师）
     @PostMapping("/create")
     public Result createCourse(@RequestBody CourseDTO courseDTO) {
         return courseService.createCourse(courseDTO);
     }
 
+    // 修改课程（教师）
     @PutMapping("/{id}")
     public Result updateCourse(@PathVariable Integer id, @RequestBody CourseDTO courseDTO) {
         return courseService.updateCourse(id, courseDTO);
     }
 
+    // 删除课程（教师）
     @DeleteMapping("/{id}")
-    public Result deleteCourse(@PathVariable Integer id, @RequestParam String teacherId) {
-        return courseService.deleteCourse(id, teacherId);
+    public Result deleteCourse(@PathVariable Integer id) {
+        return courseService.deleteCourse(id);
     }
 
+    // 获取所有课程（学生选课用）
     @GetMapping("/list")
     public Result getAllCourses() {
         return courseService.getAllCourses();
     }
 
+    // 根据课程号获取课程详情
     @GetMapping("/no/{courseNo}")
     public Result getCourseByNo(@PathVariable String courseNo) {
         return courseService.getCourseByNo(courseNo);
     }
 
+    // 根据ID获取课程详情
     @GetMapping("/{id}")
     public Result getCourseById(@PathVariable Integer id) {
         return courseService.getCourseById(id);
     }
 
+    // 学生选修课程
     @PostMapping("/select")
-    public Result selectCourse(@RequestParam String studentId,
-                               @RequestParam String studentName,
+    public Result selectCourse(@RequestParam String studentId, 
+                               @RequestParam String studentName, 
                                @RequestParam Integer courseId) {
         return courseService.selectCourse(studentId, studentName, courseId);
     }
 
+    // 学生退选课程
     @PostMapping("/drop")
-    public Result dropCourse(@RequestParam String studentId,
+    public Result dropCourse(@RequestParam String studentId, 
                              @RequestParam Integer courseId) {
         return courseService.dropCourse(studentId, courseId);
     }
 
+    /**
+     * 根据课程ID 获取该课程全部已选课学生（学生/老师都能调用）
+     */
     @GetMapping("/{courseId}/allStudent")
-    public Result<List<StudentCourse>> getCourseAllStudent(@PathVariable Integer courseId) {
+    public Result<List<StudentCourse>> getCourseAllStudent(@PathVariable Integer courseId){
         return courseService.getCourseAllStudent(courseId);
     }
 
+    // 获取教师的课程列表
     @GetMapping("/teacher/{teacherId}")
     public Result getTeacherCourses(@PathVariable String teacherId,
                                     @RequestParam(defaultValue = "false") Boolean includeArchived) {
         return courseService.getTeacherCourses(teacherId, includeArchived);
     }
 
-    @GetMapping("/teacher/{teacherId}/list")
-    public Result<List<Map<String, Object>>> getTeacherCourseList(@PathVariable String teacherId) {
-        return courseService.getTeacherCourseList(teacherId);
-    }
-
-    @GetMapping("/teacher/{teacherId}/archived")
-    public Result<List<Map<String, Object>>> getTeacherArchivedCourses(@PathVariable String teacherId) {
-        return courseService.getTeacherArchivedCourses(teacherId);
-    }
-
+    // 获取学生已选课程列表
     @GetMapping("/student/{studentId}")
     public Result getStudentCourses(@PathVariable String studentId,
                                     @RequestParam(defaultValue = "false") Boolean includeArchived) {
         return courseService.getStudentCourses(studentId, includeArchived);
     }
 
+    // 归档/取消归档课程
     @PutMapping("/{id}/archive")
     public Result archiveCourse(@PathVariable Integer id, @RequestParam Boolean archived) {
         return courseService.archiveCourse(id, archived);
-    }
-
-    @PostMapping("/join")
-    public Result joinCourse(@RequestParam String teacherId,
-                             @RequestParam String teacherName,
-                             @RequestParam String courseNo) {
-        return courseService.joinCourse(teacherId, teacherName, courseNo);
-    }
-
-    @PutMapping("/{id}/archive-self")
-    public Result archiveSelf(@PathVariable Integer id,
-                              @RequestParam String teacherId,
-                              @RequestParam Boolean archived) {
-        return courseService.archiveSelf(id, teacherId, archived);
-    }
-
-    @PutMapping("/{id}/archive-all")
-    public Result archiveAll(@PathVariable Integer id,
-                             @RequestParam String teacherId,
-                             @RequestParam Boolean archived) {
-        return courseService.archiveAll(id, teacherId, archived);
-    }
-
-    @PutMapping("/teacher/{teacherId}/sort")
-    public Result updateCourseSort(@PathVariable String teacherId,
-                                   @RequestBody List<Integer> courseIds) {
-        return courseService.updateCourseSort(teacherId, courseIds);
-    }
-
-    @PutMapping("/{id}/restore")
-    public Result restoreCourse(@PathVariable Integer id, @RequestParam String teacherId) {
-        return courseService.restoreCourse(id, teacherId);
-    }
-
-    @DeleteMapping("/{id}/archived")
-    public Result deleteArchivedCourse(@PathVariable Integer id, @RequestParam String teacherId) {
-        return courseService.deleteArchivedCourse(id, teacherId);
     }
 }

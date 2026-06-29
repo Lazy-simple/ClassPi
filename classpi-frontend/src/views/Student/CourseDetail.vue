@@ -11,8 +11,7 @@
       <div class="cover-bg" :style="{ backgroundImage: `url(${defaultCover})` }"></div>
       <div class="cover-overlay"></div>
       <div class="course-info">
-        <h1 class="course-titlenode -v
-">{{ courseInfo.courseName || courseInfo.name || '课程名称' }}</h1>
+        <h1 class="course-title">{{ courseInfo.courseName || courseInfo.name || '课程名称' }}</h1>
         <p class="course-subtitle">{{ courseInfo.courseNo || '课程编号' }}</p>
         <div class="course-meta">
           <span class="meta-item">
