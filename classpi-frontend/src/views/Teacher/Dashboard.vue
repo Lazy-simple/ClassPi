@@ -3,6 +3,7 @@
     <!-- 顶部欢迎语 -->
     <header class="page-header">
       <div>
+        <!-- 动态显示用户名，如果没有则显示“老师” -->
         <h1 class="title">早安，{{ username }} 👋</h1>
         <p class="subtitle">这是您班级的今日概况，保持专注！</p>
       </div>
@@ -11,10 +12,10 @@
       </div>
     </header>
 
-    <!-- 核心数据卡片区域 -->
+    <!-- 核心数据卡片区域 (已改为可点击跳转) -->
     <section class="stats-grid">
-      <!-- 卡片 1：班级人数 -->
-      <div class="stat-card blue-theme">
+      <!-- 卡片 1：班级人数 -> 点击跳转课程列表 -->
+      <div class="stat-card blue-theme" @click="$router.push('/main/teacher-course')">
         <div class="icon-box">
           <el-icon :size="24"><User /></el-icon>
         </div>
@@ -22,10 +23,11 @@
           <span class="label">班级总人数</span>
           <span class="value">{{ stats.studentCount }}</span>
         </div>
+        <div class="hover-hint">点击查看课程 <el-icon><ArrowRight /></el-icon></div>
       </div>
 
-      <!-- 卡片 2：待批阅作业 (动态数据) -->
-      <div class="stat-card orange-theme">
+      <!-- 卡片 2：待批阅作业 -> 点击跳转作业批改 -->
+      <div class="stat-card orange-theme" @click="$router.push('/main/check-homework')">
         <div class="icon-box">
           <el-icon :size="24"><DocumentChecked /></el-icon>
         </div>
@@ -33,10 +35,11 @@
           <span class="label">待批阅作业</span>
           <span class="value">{{ stats.pendingHomework }} 份</span>
         </div>
+        <div class="hover-hint">立即去批阅 <el-icon><ArrowRight /></el-icon></div>
       </div>
 
-      <!-- 卡片 3：平均活跃度 (动态数据) -->
-      <div class="stat-card green-theme">
+      <!-- 卡片 3：平均活跃度 -> 点击跳转成绩管理 -->
+      <div class="stat-card green-theme" @click="$router.push('/main/score')">
         <div class="icon-box">
           <el-icon :size="24"><TrendCharts /></el-icon>
         </div>
@@ -44,6 +47,7 @@
           <span class="label">平均活跃度</span>
           <span class="value">{{ stats.avgScore }}%</span>
         </div>
+        <div class="hover-hint">查看详细成绩 <el-icon><ArrowRight /></el-icon></div>
       </div>
     </section>
 
@@ -62,11 +66,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import request from '@/utils/request'; // 引入你的 axios 封装
-import { User, DocumentChecked, TrendCharts } from '@element-plus/icons-vue';
+import { User, DocumentChecked, TrendCharts, ArrowRight } from '@element-plus/icons-vue';
+
+const router = useRouter();
 
 // 1. 定义响应式数据
-const username = ref('老师'); // 实际应从 Store 或 LocalStorage 获取
+// 尝试从 localStorage 获取真实用户名，如果获取不到则默认为“老师”
+let storedUser = {};
+try {
+  const userStr = localStorage.getItem('userInfo');
+  if (userStr) storedUser = JSON.parse(userStr);
+} catch (e) {
+  console.error('解析用户信息失败', e);
+}
+const username = ref(storedUser.username || storedUser.name || '老师');
 const currentDate = ref(new Date().toLocaleDateString());
 
 // 初始化统计数据（给默认值防止闪烁）
@@ -82,13 +97,20 @@ const fetchDashboardData = async () => {
     // 假设后端接口地址是 /api/teacher/stats
     const res = await request.get('/api/teacher/stats');
 
-    // 根据你的后端返回结构调整，这里假设 res.data 就是我们要的数据对象
+    // 根据你的后端返回结构调整
     if (res.code === 200 || res.status === 200) {
-      stats.value = res.data;
+      // 这里做一个简单的兼容，防止后端字段名不一样导致页面显示 undefined
+      const data = res.data || {};
+      stats.value = {
+        studentCount: data.studentCount || 0,
+        pendingHomework: data.pendingHomework || 0,
+        avgScore: data.avgScore || 0
+      };
     }
   } catch (error) {
     console.error('获取仪表盘数据失败:', error);
     // 开发阶段为了看效果，如果接口报错，可以先用假数据兜底
+    // 如果你不需要假数据，可以把下面这行注释掉
     // stats.value = { studentCount: 45, pendingHomework: 12, avgScore: 88 };
   }
 };
@@ -148,11 +170,34 @@ onMounted(() => {
   display: flex;
   align-items: center;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
+  cursor: pointer; /* 鼠标变成手型 */
+  position: relative;
+  overflow: hidden;
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* 新增：鼠标悬停时的提示文字 */
+.hover-hint {
+  position: absolute;
+  bottom: -20px;
+  right: 20px;
+  font-size: 12px;
+  color: #909399;
+  opacity: 0;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-card:hover .hover-hint {
+  bottom: 10px;
+  opacity: 1;
 }
 
 .icon-box {
@@ -163,6 +208,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   margin-right: 16px;
+  flex-shrink: 0;
 }
 
 .blue-theme .icon-box { background: #ecf5ff; color: #409eff; }
@@ -172,6 +218,7 @@ onMounted(() => {
 .info {
   display: flex;
   flex-direction: column;
+  z-index: 1;
 }
 
 .label {
