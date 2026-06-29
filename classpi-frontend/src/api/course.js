@@ -1,11 +1,9 @@
 import request from '@/utils/request'
-import { ref } from 'vue'
-// 获取全部课程（可选课程池）
+
 export function getCourseList() {
   return request({ url: '/course/list', method: 'get' })
 }
 
-// 获取教师课程列表
 export function getTeacherCourses(teacherId, includeArchived = false) {
   return request({
     url: `/course/teacher/${teacherId}`,
@@ -14,9 +12,20 @@ export function getTeacherCourses(teacherId, includeArchived = false) {
   })
 }
 
-// 【核心修复】获取学生已选课程
-// 后端定义：@GetMapping("/student/{studentId}")
-// 必须使用模板字符串将 ID 拼接到 URL 路径中，而不是作为 params 传递
+export function getTeacherCourseList(teacherId) {
+  return request({
+    url: `/course/teacher/${teacherId}/list`,
+    method: 'get'
+  })
+}
+
+export function getTeacherArchivedCourses(teacherId) {
+  return request({
+    url: `/course/teacher/${teacherId}/archived`,
+    method: 'get'
+  })
+}
+
 export function getStudentCourses(studentId) {
   return request({
     url: `/course/student/${studentId}`,
@@ -24,52 +33,37 @@ export function getStudentCourses(studentId) {
   })
 }
 
-// 创建课程
 export function createCourse(data) {
-  return request({ url: '/course/create', method: 'post', data }) // 注意：Controller里是 /create
+  return request({ url: '/course/create', method: 'post', data })
 }
 
-// 修改课程
 export function updateCourse(id, data) {
-  return request({ url: `/course/${id}`, method: 'put', data }) // 注意：Controller里是 /{id}
+  return request({ url: `/course/${id}`, method: 'put', data })
 }
 
-// 删除课程
-export function deleteCourse(id) {
-  return request({ url: `/course/${id}`, method: 'delete' })
+export function deleteCourse(id, teacherId) {
+  return request({
+    url: `/course/${id}`,
+    method: 'delete',
+    params: { teacherId }
+  })
 }
 
-// 【核心修复】学生选课
-// 后端定义：@PostMapping("/select") 且使用 @RequestParam
-// 这里建议使用 params 传参，或者在 body 中传 JSON (取决于后端具体实现，通常 @RequestParam 对应 params)
 export function selectCourse(data) {
   return request({
     url: '/course/select',
     method: 'post',
-    params: data // 将 studentId, courseId 等作为查询参数发送
+    params: data
   })
 }
 
-// 根据课程id获取全部选课学生
-export function getCourseAllStudent(courseId){
+export function getCourseAllStudent(courseId) {
   return request({
-    url:`/course/${courseId}/allStudent`,
-    method:'get'
+    url: `/course/${courseId}/allStudent`,
+    method: 'get'
   })
 }
 
-const courseStudentList = ref([])
-// 点击课程，加载所有选课人
-const showAllMember = async (course) => {
-  const res = await getCourseAll(course.id)
-  if(res.code === 200){
-    courseStudentList.value = res.data
-    // 弹出弹窗展示列表
-  }
-}
-
-// 【核心修复】学生退课
-// 后端定义：@PostMapping("/drop")
 export function dropCourse(data) {
   return request({
     url: '/course/drop',
@@ -78,11 +72,58 @@ export function dropCourse(data) {
   })
 }
 
-// 归档/取消归档课程
 export function archiveCourse(courseId, archived) {
   return request({
     url: `/course/${courseId}/archive`,
     method: 'put',
     params: { archived }
+  })
+}
+
+export function joinCourse(teacherId, teacherName, courseNo) {
+  return request({
+    url: '/course/join',
+    method: 'post',
+    params: { teacherId, teacherName, courseNo }
+  })
+}
+
+export function archiveSelf(courseId, teacherId, archived) {
+  return request({
+    url: `/course/${courseId}/archive-self`,
+    method: 'put',
+    params: { teacherId, archived }
+  })
+}
+
+export function archiveAll(courseId, teacherId, archived) {
+  return request({
+    url: `/course/${courseId}/archive-all`,
+    method: 'put',
+    params: { teacherId, archived }
+  })
+}
+
+export function updateCourseSort(teacherId, courseIds) {
+  return request({
+    url: `/course/teacher/${teacherId}/sort`,
+    method: 'put',
+    data: courseIds
+  })
+}
+
+export function restoreCourse(courseId, teacherId) {
+  return request({
+    url: `/course/${courseId}/restore`,
+    method: 'put',
+    params: { teacherId }
+  })
+}
+
+export function deleteArchivedCourse(courseId, teacherId) {
+  return request({
+    url: `/course/${courseId}/archived`,
+    method: 'delete',
+    params: { teacherId }
   })
 }
