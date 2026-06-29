@@ -12,4 +12,9 @@ public class HomeworkPublishDTO {
     private String fileName;
     private String fileType;
     private LocalDateTime deadline;
+    private Integer fullScore;
+    private Integer enableCheck;
+    private Integer checkThreshold;
+    private Integer autoReject;
+    private Integer rejectThreshold;
 }

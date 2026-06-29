@@ -42,6 +42,11 @@ public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> i
         homework.setFileType(dto.getFileType());
         homework.setPublishTime(LocalDateTime.now());
         homework.setDeadline(dto.getDeadline());
+        homework.setFullScore(dto.getFullScore() != null ? dto.getFullScore() : 100);
+        homework.setEnableCheck(dto.getEnableCheck() != null ? dto.getEnableCheck() : 0);
+        homework.setCheckThreshold(dto.getCheckThreshold() != null ? dto.getCheckThreshold() : 50);
+        homework.setAutoReject(dto.getAutoReject() != null ? dto.getAutoReject() : 0);
+        homework.setRejectThreshold(dto.getRejectThreshold() != null ? dto.getRejectThreshold() : 50);
         boolean save = this.save(homework);
         if (!save) {
             return Result.error("作业发布失败");
@@ -52,6 +57,7 @@ public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> i
         wrapper.eq(User::getIdentity, "student");
         List<User> studentList = userService.list(wrapper);
         List<Long> studentIds = studentList.stream()
+                .filter(sh -> sh.getStudentId() != null && !sh.getStudentId().trim().isEmpty())
                 .map(sh -> Long.valueOf(sh.getStudentId()))
                 .collect(Collectors.toList());
 
@@ -72,7 +78,9 @@ public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> i
         LambdaQueryWrapper<StudentHomework> submitWrapper = new LambdaQueryWrapper<>();
         submitWrapper.eq(StudentHomework::getHomeworkId, homeworkId);
         List<StudentHomework> submitList = studentHomeworkService.list(submitWrapper);
-        List<Long> submitStuIds = submitList.stream().map(sh -> Long.valueOf(sh.getStudentId())).collect(Collectors.toList());;
+        List<Long> submitStuIds = submitList.stream().map(sh -> Long.valueOf(sh.getStudentId()))
+                .collect(Collectors.toList());
+        ;
 
         // 3.过滤未提交学生
         List<Long> remindIds = allStuIds.stream()
@@ -88,6 +96,7 @@ public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> i
 
     @Resource
     private StudentHomeworkService studentHomeworkService;
+
     @Override
     public Result getHomeworkByCourse(Long courseId) {
         try {

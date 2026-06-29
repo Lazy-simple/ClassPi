@@ -48,7 +48,7 @@ public class PreparationServiceImpl implements PreparationService {
         preparation.setCreateTime(new Date());
         preparation.setUpdateTime(new Date());
         preparation.setDeleted(0);
-        
+
         int result = preparationMapper.insert(preparation);
         if (result > 0) {
             return Result.success("新增备课内容成功", preparation);
@@ -60,35 +60,26 @@ public class PreparationServiceImpl implements PreparationService {
     public Result deletePreparation(Integer id, String teacherId, String identity) {
         LambdaQueryWrapper<Preparation> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Preparation::getId, id)
-                    .eq(Preparation::getTeacherId, teacherId)
-                    .eq(Preparation::getDeleted, 0);
-        
-        Preparation preparation = preparationMapper.selectOne(queryWrapper);
-        if (preparation == null) {
-            return Result.error("备课内容不存在或无权限");
-        }
-        
-        preparation.setDeleted(1);
-        preparation.setUpdateTime(new Date());
-        int result = preparationMapper.updateById(preparation);
+                .eq(Preparation::getTeacherId, teacherId != null ? teacherId.trim() : "");
+
+        int result = preparationMapper.delete(queryWrapper);
         if (result > 0) {
             return Result.success("删除备课内容成功");
         }
-        return Result.error("删除备课内容失败");
+        return Result.error("备课内容不存在或无权限");
     }
 
     @Override
     public Result updatePreparation(Integer id, String title, String content, String teacherId, String identity) {
         LambdaQueryWrapper<Preparation> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Preparation::getId, id)
-                    .eq(Preparation::getTeacherId, teacherId)
-                    .eq(Preparation::getDeleted, 0);
-        
+                .eq(Preparation::getTeacherId, teacherId);
+
         Preparation preparation = preparationMapper.selectOne(queryWrapper);
         if (preparation == null) {
             return Result.error("备课内容不存在或无权限");
         }
-        
+
         preparation.setTitle(title);
         preparation.setContent(content);
         preparation.setUpdateTime(new Date());
@@ -104,9 +95,8 @@ public class PreparationServiceImpl implements PreparationService {
         Page<Preparation> pageParam = new Page<>(page, pageSize);
         LambdaQueryWrapper<Preparation> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Preparation::getTeacherId, teacherId)
-                    .eq(Preparation::getDeleted, 0)
-                    .orderByDesc(Preparation::getCreateTime);
-        
+                .orderByDesc(Preparation::getCreateTime);
+
         Page<Preparation> resultPage = preparationMapper.selectPage(pageParam, queryWrapper);
         return Result.success("获取教师备课列表成功", resultPage);
     }
@@ -116,10 +106,9 @@ public class PreparationServiceImpl implements PreparationService {
         Page<Preparation> pageParam = new Page<>(page, pageSize);
         LambdaQueryWrapper<Preparation> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Preparation::getTeacherId, teacherId)
-                    .eq(Preparation::getType, type)
-                    .eq(Preparation::getDeleted, 0)
-                    .orderByDesc(Preparation::getCreateTime);
-        
+                .eq(Preparation::getType, type)
+                .orderByDesc(Preparation::getCreateTime);
+
         Page<Preparation> resultPage = preparationMapper.selectPage(pageParam, queryWrapper);
         return Result.success("按类型获取教师备课列表成功", resultPage);
     }
@@ -129,10 +118,9 @@ public class PreparationServiceImpl implements PreparationService {
         Page<Preparation> pageParam = new Page<>(page, pageSize);
         LambdaQueryWrapper<Preparation> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Preparation::getTeacherId, teacherId)
-                    .isNull(Preparation::getCourseId)
-                    .eq(Preparation::getDeleted, 0)
-                    .orderByDesc(Preparation::getCreateTime);
-        
+                .isNull(Preparation::getCourseId)
+                .orderByDesc(Preparation::getCreateTime);
+
         Page<Preparation> resultPage = preparationMapper.selectPage(pageParam, queryWrapper);
         return Result.success("获取未分配课程的备课列表成功", resultPage);
     }
@@ -141,14 +129,13 @@ public class PreparationServiceImpl implements PreparationService {
     public Result assignToCourse(Integer id, Integer courseId, String courseNo, String teacherId, String identity) {
         LambdaQueryWrapper<Preparation> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Preparation::getId, id)
-                    .eq(Preparation::getTeacherId, teacherId)
-                    .eq(Preparation::getDeleted, 0);
-        
+                .eq(Preparation::getTeacherId, teacherId);
+
         Preparation preparation = preparationMapper.selectOne(queryWrapper);
         if (preparation == null) {
             return Result.error("备课内容不存在或无权限");
         }
-        
+
         preparation.setCourseId(courseId);
         preparation.setCourseNo(courseNo);
         preparation.setUpdateTime(new Date());
@@ -163,9 +150,8 @@ public class PreparationServiceImpl implements PreparationService {
     public Result getPreparationById(Integer id, String teacherId, String identity) {
         LambdaQueryWrapper<Preparation> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Preparation::getId, id)
-                    .eq(Preparation::getTeacherId, teacherId)
-                    .eq(Preparation::getDeleted, 0);
-        
+                .eq(Preparation::getTeacherId, teacherId);
+
         Preparation preparation = preparationMapper.selectOne(queryWrapper);
         if (preparation == null) {
             return Result.error("备课内容不存在或无权限");
