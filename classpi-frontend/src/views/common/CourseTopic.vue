@@ -7,8 +7,8 @@
         </div>
       </template>
 
-      <!-- 发布话题：仅教师可见 -->
-      <div v-if="userStore.userInfo?.identity === 'teacher'" class="publishing-box">
+      <!-- 发布话题：所有人都可见 -->
+      <div class="publishing-box">
         <el-input v-model="topicForm.title" placeholder="输入话题标题" />
         <el-input
             v-model="topicForm.content"
@@ -32,20 +32,30 @@
               <!-- 禁言标签 -->
               <el-tag v-if="topic.allowComment === 0" type="warning" size="small">🔇 已禁言</el-tag>
             </h3>
-            <div class="topic-operate" v-if="userStore.userInfo?.identity === 'teacher'">
-              <el-button size="small" @click="openEdit(topic)">编辑</el-button>
-              <el-button size="small" type="danger" @click="handleDeleteTopic(topic)">删除</el-button>
-              <el-button size="small" type="warning" @click="handleToggleTop(topic)">
-                {{ topic.isTop === 1 ? '取消置顶' : '置顶' }}
-              </el-button>
-              <!-- 禁言/解禁按钮 -->
+            <div class="topic-operate">
               <el-button
+                  v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
+                  size="small"
+                  @click="openEdit(topic)"
+              >编辑</el-button>
+              <el-button
+                  v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
+                  size="small"
+                  type="danger"
+                  @click="handleDeleteTopic(topic)"
+              >删除</el-button>
+              <el-button
+                  v-if="userStore.userInfo?.identity === 'teacher'"
+                  size="small"
+                  type="warning"
+                  @click="handleToggleTop(topic)"
+              >{{ topic.isTop === 1 ? '取消置顶' : '置顶' }}</el-button>
+              <el-button
+                  v-if="userStore.userInfo?.identity === 'teacher'"
                   size="small"
                   :type="topic.allowComment === 1 ? 'danger' : 'success'"
                   @click="handleToggleComment(topic)"
-              >
-                {{ topic.allowComment === 1 ? '🔇 禁言' : '🔊 解禁' }}
-              </el-button>
+              >{{ topic.allowComment === 1 ? '🔇 禁言' : '🔊 解禁' }}</el-button>
             </div>
           </div>
           <div class="topic-content">{{ topic.content }}</div>
@@ -96,7 +106,6 @@
                   <span v-if="comment.authorType === 1" style="color:#409eff;">👨‍🏫 {{ comment.authorName }}</span>
                   <span v-else>{{ comment.authorName || '用户' }}</span>
                 </template>
-                ：
               </span>
               <span>{{ comment.content }}</span>
               <span style="margin-left:12px;font-size:12px;color:#999">{{ formatTime(comment.createTime) }}</span>
@@ -147,7 +156,7 @@ const props = defineProps({
 })
 
 // 课程ID：优先使用props传入，否则从URL查询参数获取
-const courseId = ref(Number(props.courseId || route.query.courseId || 1))
+const courseId = ref(Number(props.courseId || route.query.courseId || localStorage.getItem('currentCourseId') || 1))
 
 // 加载状态
 const loading = ref(false)
@@ -195,6 +204,14 @@ const formatTime = (time) => {
 
 // 加载话题列表
 const loadTopics = async () => {
+  // ✅ 从 URL 保存 courseNo 到 localStorage
+  if (route.query.courseNo) {
+    localStorage.setItem('currentCourseNo', route.query.courseNo)
+  }
+  if (route.query.courseId) {
+    localStorage.setItem('currentCourseId', route.query.courseId)
+  }
+
   loading.value = true
   try {
     const res = await fetchTopicList(courseId.value)
@@ -204,7 +221,6 @@ const loadTopics = async () => {
         allowComment: topic.allowComment !== undefined ? topic.allowComment : 1
       }))
       for (const topic of topicList.value) {
-        // 初始化评论表单
         initCommentForm(topic.id)
         await loadReplies(topic.id)
       }
@@ -235,6 +251,7 @@ const loadReplies = async (topicId) => {
 // ========== 话题操作 ==========
 
 // 发布话题
+// 发布话题
 const handlePublishTopic = async () => {
   if (!topicForm.value.title || !topicForm.value.content) {
     return ElMessage.warning('标题和内容不能为空')
@@ -247,20 +264,27 @@ const handlePublishTopic = async () => {
 
   submitting.value = true
   try {
-    const courseNo = localStorage.getItem('currentCourseNo') || 'C001'
+    // ✅ 从多个来源获取 courseNo，最后给默认值
+    const courseNo = localStorage.getItem('currentCourseNo')
+        || route.query.courseNo
+        || 'C001'  // 默认值
+
+    console.log('========== 发布话题 ==========')
+    console.log('courseNo:', courseNo)
+    console.log('courseId:', courseId.value)
 
     const data = {
       courseId: courseId.value,
       courseNo: courseNo,
       title: topicForm.value.title,
       content: topicForm.value.content,
-      authorId: String(userInfo.id),
+      //authorId: String(userInfo.id),
       authorName: userInfo.name || userInfo.username || '用户',
       authorType: userInfo.identity === 'teacher' ? 1 : 2,
       isAnonymous: 0
     }
 
-    console.log('发布话题数据:', data)
+    console.log('最终提交数据:', data)
 
     const res = await apiPublishTopic(data)
     if (res.code === 200) {
@@ -273,9 +297,10 @@ const handlePublishTopic = async () => {
   } catch (error) {
     console.error('发布话题失败:', error)
     if (error.response?.data) {
-      console.error('后端返回错误:', error.response.data)
+      ElMessage.error(error.response.data.message || '发布失败')
+    } else {
+      ElMessage.error('网络异常，请稍后重试')
     }
-    ElMessage.error('网络异常，请稍后重试')
   } finally {
     submitting.value = false
   }

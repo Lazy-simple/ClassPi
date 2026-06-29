@@ -208,16 +208,33 @@
             <el-empty description="暂无讨论" />
           </div>
           <div v-else class="topic-list">
-            <div class="topic-card" v-for="topic in topicList" :key="topic.id" @click="openTopic(topic)">
-              <div class="topic-card-header">
-                <h4 class="topic-card-title">{{ topic.title }}</h4>
+            <div class="topic-card" v-for="topic in topicList" :key="topic.id">
+              <div class="topic-card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 class="topic-card-title" @click="openTopic(topic)" style="cursor:pointer; flex:1;">{{ topic.title }}</h4>
+                <!-- 操作按钮 -->
+                <div class="topic-actions">
+                  <el-button
+                      v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
+                      size="small"
+                      type="primary"
+                      text
+                      @click.stop="openEditTopic(topic)"
+                  >编辑</el-button>
+                  <el-button
+                      v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
+                      size="small"
+                      type="danger"
+                      text
+                      @click.stop="handleDeleteTopic(topic)"
+                  >删除</el-button>
+                </div>
               </div>
-              <p class="topic-card-content">{{ topic.content || '暂无内容' }}</p>
+              <p class="topic-card-content" @click="openTopic(topic)" style="cursor:pointer;">{{ topic.content || '暂无内容' }}</p>
               <div class="topic-card-footer">
-                <span class="topic-card-author">
-                  <el-icon><User /></el-icon>
-                  {{ topic.authorName || '匿名' }}
-                </span>
+                    <span class="topic-card-author">
+                      <el-icon><User /></el-icon>
+                      {{ topic.authorName || '匿名' }}
+                    </span>
                 <span class="topic-card-time">{{ topic.createTime || '--' }}</span>
                 <span class="topic-card-reply">
                   <el-icon><ChatDotRound /></el-icon>
@@ -253,7 +270,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage,ElMessageBox } from 'element-plus'
 import {
   User, Collection, DocumentChecked, Document, ChatDotRound, Clock,
   UploadFilled, Check, Link, Folder, Plus, ArrowLeft
@@ -261,7 +278,7 @@ import {
 import { getStudentCourses } from '@/api/course'
 import { getHomeworkByCourse } from '@/api/homework'
 import { getResourceTree, downloadResource as downloadRes } from '@/api/resource'
-import { getTopicList, publishTopic, getCommentList, addComment } from '@/api/topic'
+import { getTopicList, publishTopic, getCommentList, addComment,deleteTopic,editTopic } from '@/api/topic'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
@@ -283,6 +300,8 @@ const topicSubmitting = ref(false)
 const commentSubmitting = ref(false)
 const newComment = ref('')
 const commentAnonymous = ref(false)
+const editingTopicId = ref(null)
+
 
 const topicForm = ref({
   title: '',
@@ -308,6 +327,11 @@ const loadCourseInfo = async () => {
       const course = res.data.find(c => (c.courseId || c.id) === courseId.value)
       if (course) {
         courseInfo.value = course
+        // ✅ 保存 courseNo 到 localStorage
+        if (course.courseNo) {
+          localStorage.setItem('currentCourseNo', course.courseNo)
+        }
+        console.log('课程信息加载成功:', course)
       }
     }
   } catch (error) {
@@ -380,6 +404,13 @@ const formatFileSize = (bytes) => {
 }
 
 const loadTopics = async () => {
+  // ✅ 确保 courseNo 保存到 localStorage
+  if (route.query.courseNo) {
+    localStorage.setItem('currentCourseNo', route.query.courseNo)
+  } else if (courseInfo.value?.courseNo) {
+    localStorage.setItem('currentCourseNo', courseInfo.value.courseNo)
+  }
+
   loading.value = true
   try {
     const res = await getTopicList(courseId.value)
@@ -418,32 +449,99 @@ const submitTopic = async () => {
     ElMessage.warning('请输入内容')
     return
   }
+
+  const courseNo = localStorage.getItem('currentCourseNo') || ''
+  if (!courseNo) {
+    ElMessage.error('课程编号缺失，请重新进入课程')
+    return
+  }
+
   topicSubmitting.value = true
   try {
     const userId = userStore.userInfo?.id || localStorage.getItem('userId')
     const userName = userStore.userInfo?.username || userStore.userInfo?.name || localStorage.getItem('userName') || '学生'
-    const res = await publishTopic({
-      courseId: courseId.value,
-      title: topicForm.value.title,
-      content: topicForm.value.content,
-      authorId: userId,
-      authorName: topicForm.value.isAnonymous ? '匿名用户' : userName,
-      authorType: 2,
-      isAnonymous: topicForm.value.isAnonymous ? 1 : 0
-    })
-    if (res.code === 200) {
-      ElMessage.success('发布成功')
-      showPublishDialog.value = false
-      topicForm.value = { title: '', content: '', isAnonymous: false }
-      loadTopics()
+
+    // ✅ 如果是编辑模式
+    if (editingTopicId.value) {
+      const res = await editTopic({
+        id: editingTopicId.value,
+        title: topicForm.value.title,
+        content: topicForm.value.content,
+        authorId: userId,
+        identity: userStore.userInfo?.identity || 'student'
+      })
+      if (res.code === 200) {
+        ElMessage.success('修改成功')
+        showPublishDialog.value = false
+        editingTopicId.value = null
+        topicForm.value = { title: '', content: '', isAnonymous: false }
+        loadTopics()
+      } else {
+        ElMessage.error(res.msg || '修改失败')
+      }
     } else {
-      ElMessage.error(res.msg || '发布失败')
+      // 发布新话题
+      const res = await publishTopic({
+        courseId: courseId.value,
+        courseNo: courseNo,
+        title: topicForm.value.title,
+        content: topicForm.value.content,
+        authorId: userId,
+        authorName: topicForm.value.isAnonymous ? '匿名用户' : userName,
+        authorType: 2,
+        isAnonymous: topicForm.value.isAnonymous ? 1 : 0
+      })
+      if (res.code === 200) {
+        ElMessage.success('发布成功')
+        showPublishDialog.value = false
+        topicForm.value = { title: '', content: '', isAnonymous: false }
+        loadTopics()
+      } else {
+        ElMessage.error(res.msg || '发布失败')
+      }
     }
   } catch (error) {
-    console.error('发布失败:', error)
-    ElMessage.error('发布失败')
+    console.error('操作失败:', error)
+    ElMessage.error('操作失败')
   } finally {
     topicSubmitting.value = false
+  }
+}
+
+// 编辑话题
+const openEditTopic = (topic) => {
+  // 弹出编辑对话框
+  topicForm.value.title = topic.title
+  topicForm.value.content = topic.content
+  topicForm.value.isAnonymous = topic.isAnonymous === 1
+  // 保存要编辑的话题ID
+  editingTopicId.value = topic.id
+  showPublishDialog.value = true
+}
+
+// 删除话题
+const handleDeleteTopic = async (topic) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除话题「${topic.title}」吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    const res = await deleteTopic(
+        topic.id,
+        String(userStore.userInfo?.id),  // ✅ 传当前用户ID
+        userStore.userInfo?.identity || 'student'
+    )
+    if (res.code === 200) {
+      ElMessage.success('删除成功')
+      loadTopics()
+    } else {
+      ElMessage.error(res.msg || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除话题失败:', error)
+    }
   }
 }
 
