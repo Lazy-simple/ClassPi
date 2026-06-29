@@ -1,38 +1,46 @@
 <template>
-  <div class="main-container">
-    <!-- 智能判断：非仪表盘页面才显示顶部导航 -->
-    <TeacherTopNav v-if="!isDashboard" />
+  <el-container style="height: 100vh; background-color: #f3f4f6;">
+    <!--
+      修改点 1: height 改为 64px 以适配你的 Header.vue
+      padding: 0 是必须的，否则 Element Plus 会自带 20px 内边距导致错位
+    -->
+    <el-header style="padding: 0; height: 64px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <!-- 这里导入你的 Header 组件 -->
+      <Header />
+    </el-header>
 
-    <!-- 页面主体内容区 -->
-    <main class="content-area">
-      <router-view />
-    </main>
-  </div>
+    <!-- 主体内容区 -->
+    <el-main style="padding: 20px; overflow-y: auto;">
+      <!-- 建议加上 v-slot 写法以支持过渡动画，如果不需要可改回简单的 <router-view /> -->
+      <router-view v-slot="{ Component }">
+        <transition name="fade-transform" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </el-main>
+  </el-container>
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
-import TeacherTopNav from './Teacher/TeacherTopNav.vue'; // 引入刚才新建的组件
-
-const route = useRoute();
-
-// 判断当前是否是仪表盘首页
-const isDashboard = computed(() => {
-  return route.path === '/main/dashboard';
-});
+// 确保路径与你实际的文件位置一致
+// 如果报错找不到，请检查 src/components/Layout/Header.vue 是否存在
+import Header from '@/components/Layout/Header.vue'
 </script>
 
 <style scoped>
-.main-container {
-  min-height: 100vh;
-  background-color: #f5f7fa; /* 全局浅灰背景 */
-  display: flex;
-  flex-direction: column;
+/* 可选：添加一点过渡动画效果 */
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: all 0.2s;
 }
 
-.content-area {
-  flex: 1;
-  /* 如果需要在非仪表盘页面加内边距，可以在这里控制 */
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
 }
 </style>
