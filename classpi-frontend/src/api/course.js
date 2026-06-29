@@ -93,3 +93,20 @@ export function archiveCourse(courseId, archived) {
     params: { archived }
   })
 }
+
+// 【新增】获取某课程的讨论列表
+export function getTopicList(courseId) {
+  return request({
+    url: `/topic/list/${courseId}`, // 假设后端路径，请根据实际调整
+    method: 'get'
+  })
+}
+
+// 【新增】发布新话题
+export function createTopic(data) {
+  return request({
+    url: '/topic/create',
+    method: 'post',
+    data // data 应包含 { courseId, title, content }
+  })
+}
