@@ -13,6 +13,9 @@
             <el-button type="primary" @click="openFolderDialog" :disabled="!selectedCourseId">新建文件夹</el-button>
             <el-button type="success" @click="openUploadDialog" :disabled="!selectedCourseId">上传文件</el-button>
             <el-button @click="openLinkDialog" :disabled="!selectedCourseId">添加外链资源</el-button>
+            <el-button type="warning" @click="openPreparationDialog" :disabled="!selectedCourseId">
+              从备课区导入
+            </el-button>
           </div>
         </div>
       </template>
@@ -129,6 +132,49 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 从备课区导入弹窗 -->
+    <el-dialog v-model="preparationDialog" title="从备课区导入" width="700px" top="5vh">
+      <div class="preparation-selector">
+        <el-tabs v-model="prepActiveType" @tab-change="loadPreparations">
+          <el-tab-pane label="全部" name="all" />
+          <el-tab-pane label="作业" name="homework" />
+          <el-tab-pane label="话题" name="topic" />
+          <el-tab-pane label="资料" name="resource" />
+        </el-tabs>
+
+        <el-table :data="prepList" v-loading="prepLoading" border max-height="350">
+          <el-table-column label="标题" prop="title" min-width="150" />
+          <el-table-column label="类型" prop="type" width="80">
+            <template #default="{ row }">
+              <el-tag :type="getTypeTag(row.type)" size="small">
+                {{ getTypeLabel(row.type) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="内容" prop="content" min-width="180" show-overflow-tooltip />
+          <el-table-column label="操作" width="80" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" type="primary" @click="importPreparation(row)" :loading="row.importing">
+                导入
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-pagination
+            v-model:current-page="prepPage"
+            v-model:page-size="prepPageSize"
+            :total="prepTotal"
+            layout="total, prev, pager, next"
+            @current-change="loadPreparations"
+            style="margin-top:10px;text-align:right;"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="preparationDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -139,6 +185,7 @@ import { Folder, Link, Document } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 // 引入接口方法
 import { getResourceTree, createFolder, addLink, downloadResource, deleteResource } from '@/api/resource'
+import request from '@/utils/request'
 
 // 路由实例
 const route = useRoute()
@@ -168,6 +215,13 @@ const fileList = ref([])
 const uploadAction = ref('http://localhost:8080/resource/upload')
 const uploadData = ref({})
 const uploadHeaders = ref({})
+const preparationDialog = ref(false)
+const prepActiveType = ref('all')
+const prepList = ref([])
+const prepLoading = ref(false)
+const prepPage = ref(1)
+const prepPageSize = ref(10)
+const prepTotal = ref(0)
 
 // 获取课程ID（从路由参数/存储中获取，需根据实际业务调整）
 const getCourseId = () => {
@@ -650,6 +704,122 @@ const handleUploadError = (error, file) => {
   ElMessage.error('文件上传失败')
 }
 
+// 获取备课区内容列表
+const getPreparations = async (type = 'all', page = 1, pageSize = 10) => {
+  const userInfo = getUserInfo()
+  if (!userInfo || !userInfo.id) return
+
+  const url = type === 'all'
+      ? `http://localhost:8080/preparation/teacher/${userInfo.id}`
+      : `http://localhost:8080/preparation/teacher/${userInfo.id}/type/${type}`
+
+  try {
+    const res = await fetch(`${url}?page=${page}&pageSize=${pageSize}`)
+    const data = await res.json()
+    if (data.code === 200 && data.data) {
+      prepList.value = data.data.records || []
+      prepTotal.value = data.data.total || 0
+    }
+  } catch (e) {
+    console.error('加载备课区失败:', e)
+  }
+}
+
+// 加载备课区
+const loadPreparations = () => {
+  prepLoading.value = true
+  getPreparations(prepActiveType.value, prepPage.value, prepPageSize.value).finally(() => {
+    prepLoading.value = false
+  })
+}
+
+// 打开备课区导入弹窗
+const openPreparationDialog = () => {
+  prepPage.value = 1
+  prepActiveType.value = 'all'
+  prepList.value = []
+  prepTotal.value = 0
+  preparationDialog.value = true
+  loadPreparations()
+}
+
+// 获取类型标签颜色
+const getTypeTag = (type) => {
+  const map = { homework: 'primary', topic: 'warning', resource: 'success' }
+  return map[type] || 'info'
+}
+
+// 获取类型显示文字
+const getTypeLabel = (type) => {
+  const map = { homework: '作业', topic: '话题', resource: '资料' }
+  return map[type] || type
+}
+
+// 导入备课内容到课程资源
+const importPreparation = async (row) => {
+  row.importing = true
+  try {
+    const userInfo = getUserInfo()
+    const courseNo = localStorage.getItem('currentCourseNo')
+    const parentId = currentParentId.value || '0'  // ✅ 取当前目录
+
+    let resData
+    if (row.type === 'homework') {
+      resData = await request({
+        url: '/preparation/import/homework',
+        method: 'post',
+        data: {
+          preparationId: row.id,
+          courseId: selectedCourseId.value,
+          courseNo: courseNo,
+          parentId: parentId,  // ✅ 加这行
+          uploaderId: String(userInfo.id),
+          uploaderName: String(userInfo.name || userInfo.username)
+        }
+      })
+    } else if (row.type === 'resource') {
+      resData = await request({
+        url: '/preparation/import/resource',
+        method: 'post',
+        data: {
+          preparationId: row.id,
+          courseId: selectedCourseId.value,
+          courseNo: courseNo,
+          parentId: parentId,  // ✅ 加这行
+          uploaderId: String(userInfo.id),
+          uploaderName: String(userInfo.name || userInfo.username)
+        }
+      })
+    } else if (row.type === 'topic') {
+      resData = await request({
+        url: '/preparation/import/topic',
+        method: 'post',
+        data: {
+          preparationId: row.id,
+          courseId: selectedCourseId.value,
+          courseNo: courseNo,
+          parentId: parentId,  // ✅ 加这行
+          uploaderId: String(userInfo.id),
+          uploaderName: String(userInfo.name || userInfo.username)
+        }
+      })
+    }
+
+    if (resData && resData.code === 200) {
+      ElMessage.success('导入成功')
+      initResourceList()
+      loadPreparations()
+    } else {
+      ElMessage.error(resData?.message || '导入失败')
+    }
+  } catch (e) {
+    console.error('导入失败:', e)
+    ElMessage.error('导入失败')
+  } finally {
+    row.importing = false
+  }
+}
+
 // 页面挂载时初始化
 onMounted(() => {
   loadCourseList()
@@ -709,5 +879,9 @@ onMounted(() => {
 .resource-actions {
   display: flex;
   gap: 8px;
+}
+
+.preparation-selector {
+  padding: 5px 0;
 }
 </style>
