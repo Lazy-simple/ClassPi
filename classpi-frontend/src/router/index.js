@@ -34,6 +34,7 @@ const routes = [
       { path: 'score', component: () => import('@/views/Teacher/ScoreManage.vue') },
       { path: 'course-resource', component: () => import('@/views/Teacher/CourseResource.vue') },
       { path: 'course-topic', component: () => import('@/views/common/CourseTopic.vue') },
+      { path: 'preparation', component: () => import('@/views/Teacher/Preparation.vue') },
       // 学生路由
       { path: 'student-course', component: () => import('@/views/Student/CourseList.vue') },
       { path: 'course-detail/:courseId', component: () => import('@/views/Student/CourseDetail.vue') },
@@ -100,7 +101,7 @@ router.beforeEach((to, from, next) => {
 
   // --- 场景 D：身份与页面的权限校验 ---
   // 教师专属页面特征
-  const teacherPaths = ['/main/dashboard', '/main/teacher-course', '/main/publish-homework', '/main/check-homework', '/main/score', '/main/course-resource'];
+  const teacherPaths = ['/main/dashboard', '/main/teacher-course', '/main/publish-homework', '/main/check-homework', '/main/score', '/main/course-resource', '/main/preparation'];
   // 学生专属页面特征
   const studentPaths = ['/main/student-course', '/main/submit-homework', '/main/student-resource', '/main/student-topic'];
 

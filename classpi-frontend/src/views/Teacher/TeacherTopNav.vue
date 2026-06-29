@@ -37,6 +37,10 @@
         <el-icon><TrendCharts /></el-icon> 成绩管理
       </el-menu-item>
 
+      <el-menu-item index="/main/preparation">
+        <el-icon><FolderOpened /></el-icon> 备课区
+      </el-menu-item>
+
       <el-menu-item index="/main/course-resource">
         <el-icon><FolderOpened /></el-icon> 教学资源
       </el-menu-item>
@@ -57,6 +61,7 @@ const activePath = computed(() => route.path);
 // 路由路径与中文标题的映射表（方便以后扩展）
 const titleMap = {
   '/main/teacher-course': '我的课程',
+  '/main/preparation': '备课区',
   '/main/publish-homework': '发布新作业',
   '/main/check-homework': '作业批阅',
   '/main/score': '成绩统计分析',
