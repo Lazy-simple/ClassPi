@@ -20,8 +20,15 @@ public class TopicController {
     @PostMapping("/create")
     public Result createTopic(@RequestBody @Validated TopicCreateDTO dto,
                               @RequestHeader(value = "userId", required = false) String userId) {
-        // ✅ 用请求头里的 userId 覆盖 dto 里的 authorId
-        if (userId == null) {
+        System.out.println("========== createTopic ==========");
+        System.out.println("请求头 userId: " + userId);
+        System.out.println("DTO authorId: " + dto.getAuthorId());
+
+        // ✅ 优先用请求头的 userId，其次用 dto 里的 authorId
+        if (userId == null || userId.isEmpty()) {
+            userId = dto.getAuthorId();
+        }
+        if (userId == null || userId.isEmpty()) {
             return Result.error("用户未登录");
         }
         return topicService.createTopic(
@@ -29,7 +36,7 @@ public class TopicController {
                 dto.getCourseNo(),
                 dto.getTitle(),
                 dto.getContent(),
-                userId,  // ✅ 用这个
+                userId,
                 dto.getAuthorName(),
                 dto.getAuthorType(),
                 dto.getIsAnonymous()

@@ -210,7 +210,12 @@
           <div v-else class="topic-list">
             <div class="topic-card" v-for="topic in topicList" :key="topic.id">
               <div class="topic-card-header" style="display:flex; justify-content:space-between; align-items:center;">
-                <h4 class="topic-card-title" @click="openTopic(topic)" style="cursor:pointer; flex:1;">{{ topic.title }}</h4>
+                <h4 class="topic-card-title" @click="openTopic(topic)" style="cursor:pointer; flex:1;">
+                  {{ topic.title }}
+                  <!-- ✅ 添加标签 -->
+                  <el-tag v-if="topic.isTop == 1" type="danger" size="small" style="margin-left:8px;">置顶</el-tag>
+                  <el-tag v-if="topic.allowComment == 0" type="warning" size="small" style="margin-left:8px;">🔇 已禁言</el-tag>
+                </h4>
                 <!-- 操作按钮 -->
                 <div class="topic-actions">
                   <el-button
@@ -415,7 +420,11 @@ const loadTopics = async () => {
   try {
     const res = await getTopicList(courseId.value)
     if (res.code === 200) {
-      topicList.value = res.data || []
+      // ✅ 处理 allowComment 默认值
+      topicList.value = (res.data || []).map(topic => ({
+        ...topic,
+        allowComment: topic.allowComment !== undefined ? topic.allowComment : 1
+      }))
     }
   } catch (error) {
     console.error('加载讨论列表失败:', error)
@@ -562,17 +571,36 @@ const submitComment = async () => {
       authorType: 2,
       isAnonymous: commentAnonymous.value ? 1 : 0
     })
+
+    // ✅ 后端返回的 res 中 code 可能是 200 或 500
     if (res.code === 200) {
       ElMessage.success('评论成功')
       newComment.value = ''
       commentAnonymous.value = false
       openTopic(selectedTopic.value)
     } else {
-      ElMessage.error(res.msg || '评论失败')
+      // ✅ 直接显示 res.message
+      const msg = res.message || res.msg || '评论失败'
+      if (msg.includes('禁言')) {
+        ElMessage.warning('该话题已被教师禁言，无法发表评论')
+      } else {
+        ElMessage.error(msg)
+      }
     }
   } catch (error) {
     console.error('评论失败:', error)
-    ElMessage.error('评论失败')
+    // ✅ 从 error.response 取错误信息
+    const data = error.response?.data
+    if (data) {
+      const msg = data.message || data.msg || ''
+      if (msg.includes('禁言')) {
+        ElMessage.warning('该话题已被教师禁言，无法发表评论')
+      } else {
+        ElMessage.error(msg || '评论失败')
+      }
+    } else {
+      ElMessage.error('评论失败，请稍后重试')
+    }
   } finally {
     commentSubmitting.value = false
   }

@@ -18,7 +18,7 @@ export function publishTopic(data) {
             courseNo: String(data.courseNo || ''),
             title: String(data.title || ''),
             content: String(data.content || ''),
-            authorId: String(data.authorId || ''),
+            authorId: String(data.authorId || ''),  // ✅ 确保传了
             authorName: String(data.authorName || ''),
             authorType: Number(data.authorType || 2),
             isAnonymous: Number(data.isAnonymous || 0)

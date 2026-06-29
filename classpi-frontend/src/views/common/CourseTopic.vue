@@ -1,119 +1,103 @@
 <template>
   <div class="page-wrap">
-    <el-card shadow="hover">
-      <template #header>
-        <div class="header-row">
-          <h2>课程讨论区</h2>
-        </div>
-      </template>
+    <!-- 发布话题：所有人都可见 -->
+    <div class="publishing-box">
+      <el-input v-model="topicForm.title" placeholder="输入话题标题" />
+      <el-input
+          v-model="topicForm.content"
+          type="textarea"
+          :rows="4"
+          placeholder="输入话题内容"
+          style="margin-top:10px"
+      />
+      <el-button type="primary" class="mt-3" :loading="submitting" @click="handlePublishTopic">发布话题</el-button>
+    </div>
 
-      <!-- 发布话题：所有人都可见 -->
-      <div class="publishing-box">
-        <el-input v-model="topicForm.title" placeholder="输入话题标题" />
-        <el-input
-            v-model="topicForm.content"
-            type="textarea"
-            :rows="4"
-            placeholder="输入话题内容"
-            style="margin-top:10px"
-        />
-        <el-button type="primary" class="mt-3" :loading="submitting" @click="handlePublishTopic">发布话题</el-button>
+    <div v-loading="loading" class="topic-list">
+      <div v-if="topicList.length === 0 && !loading" class="empty-tip">
+        <el-empty description="暂无话题，快来发布第一个话题吧！" />
       </div>
-
-      <div v-loading="loading" class="topic-list">
-        <div v-if="topicList.length === 0 && !loading" class="empty-tip">
-          <el-empty description="暂无话题，快来发布第一个话题吧！" />
+      <div class="topic-item" v-for="topic in topicList" :key="topic.id">
+        <div class="topic-head">
+          <h3>
+            {{ topic.title }}
+            <el-tag v-if="topic.isTop === 1" type="danger" size="small">置顶</el-tag>
+            <el-tag v-if="topic.allowComment === 0" type="warning" size="small">🔇 已禁言</el-tag>
+          </h3>
+          <div class="topic-operate">
+            <el-button
+                v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
+                size="small"
+                @click="openEdit(topic)"
+            >编辑</el-button>
+            <el-button
+                v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
+                size="small"
+                type="danger"
+                @click="handleDeleteTopic(topic)"
+            >删除</el-button>
+            <el-button
+                v-if="userStore.userInfo?.identity === 'teacher'"
+                size="small"
+                type="warning"
+                @click="handleToggleTop(topic)"
+            >{{ topic.isTop === 1 ? '取消置顶' : '置顶' }}</el-button>
+            <el-button
+                v-if="userStore.userInfo?.identity === 'teacher'"
+                size="small"
+                :type="topic.allowComment === 1 ? 'danger' : 'success'"
+                @click="handleToggleComment(topic)"
+            >{{ topic.allowComment === 1 ? '🔇 禁言' : '🔊 解禁' }}</el-button>
+          </div>
         </div>
-        <div class="topic-item" v-for="topic in topicList" :key="topic.id">
-          <div class="topic-head">
-            <h3>
-              {{ topic.title }}
-              <el-tag v-if="topic.isTop === 1" type="danger" size="small">置顶</el-tag>
-              <!-- 禁言标签 -->
-              <el-tag v-if="topic.allowComment === 0" type="warning" size="small">🔇 已禁言</el-tag>
-            </h3>
-            <div class="topic-operate">
-              <el-button
-                  v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
-                  size="small"
-                  @click="openEdit(topic)"
-              >编辑</el-button>
-              <el-button
-                  v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
-                  size="small"
-                  type="danger"
-                  @click="handleDeleteTopic(topic)"
-              >删除</el-button>
-              <el-button
-                  v-if="userStore.userInfo?.identity === 'teacher'"
-                  size="small"
-                  type="warning"
-                  @click="handleToggleTop(topic)"
-              >{{ topic.isTop === 1 ? '取消置顶' : '置顶' }}</el-button>
-              <el-button
-                  v-if="userStore.userInfo?.identity === 'teacher'"
-                  size="small"
-                  :type="topic.allowComment === 1 ? 'danger' : 'success'"
-                  @click="handleToggleComment(topic)"
-              >{{ topic.allowComment === 1 ? '🔇 禁言' : '🔊 解禁' }}</el-button>
-            </div>
-          </div>
-          <div class="topic-content">{{ topic.content }}</div>
-          <div class="topic-meta">
-            <span>发布人：{{ topic.authorType === 1 ? '教师' : '学生' }}</span>
-            <span style="margin-left:12px">{{ formatTime(topic.createTime) }}</span>
-            <span style="margin-left:12px">回复数：{{ topic.replyCount || 0 }}</span>
-          </div>
+        <div class="topic-content">{{ topic.content }}</div>
+        <div class="topic-meta">
+          <span>发布人：{{ topic.authorType === 1 ? '教师' : '学生' }}</span>
+          <span style="margin-left:12px">{{ formatTime(topic.createTime) }}</span>
+          <span style="margin-left:12px">回复数：{{ topic.replyCount || 0 }}</span>
+        </div>
 
-          <div class="comment-wrap">
-            <h4>
-              评论区
-              <el-tag v-if="topic.allowComment === 0" size="small" type="danger" style="margin-left:10px;">
-                🔇 已禁言
-              </el-tag>
-            </h4>
-            <!-- 评论输入框：禁言时隐藏 -->
-            <div v-if="topic.allowComment !== 0" class="comment-input">
-              <el-input
-                  v-model="commentForm[topic.id].content"
-                  placeholder="输入评论内容"
-                  style="flex:1"
-              />
-              <el-checkbox v-model="commentForm[topic.id].isAnonymous" class="ml-2">匿名</el-checkbox>
-              <el-button
-                  type="primary"
-                  size="small"
-                  class="ml-2"
-                  :loading="commentLoading"
-                  @click="handleSubmitComment(topic.id)"
-              >提交</el-button>
-            </div>
-            <!-- 禁言提示 -->
-            <div v-else class="disabled-comment">
-              <el-alert type="warning" :closable="false" show-icon>
-                该话题已被教师禁言，无法发表评论
-              </el-alert>
-            </div>
-            <div v-if="!commentMap[topic.id] || commentMap[topic.id].length === 0" class="empty-comment">
-              暂无评论，快来抢沙发！
-            </div>
-            <div class="comment-item" v-for="comment in commentMap[topic.id] || []" :key="comment.id">
-              <span>
-                <template v-if="comment.isAnonymous === 1">
-                  匿名用户
-                </template>
-                <template v-else>
-                  <span v-if="comment.authorType === 1" style="color:#409eff;">👨‍🏫 {{ comment.authorName }}</span>
-                  <span v-else>{{ comment.authorName || '用户' }}</span>
-                </template>
-              </span>
-              <span>{{ comment.content }}</span>
-              <span style="margin-left:12px;font-size:12px;color:#999">{{ formatTime(comment.createTime) }}</span>
-            </div>
+        <div class="comment-wrap">
+          <h4>评论区</h4>
+          <div v-if="topic.allowComment !== 0" class="comment-input">
+            <el-input
+                v-model="commentForm[topic.id].content"
+                placeholder="输入评论内容"
+                style="flex:1"
+            />
+            <el-checkbox v-model="commentForm[topic.id].isAnonymous" class="ml-2">匿名</el-checkbox>
+            <el-button
+                type="primary"
+                size="small"
+                class="ml-2"
+                :loading="commentLoading"
+                @click="handleSubmitComment(topic.id)"
+            >提交</el-button>
+          </div>
+          <div v-else class="disabled-comment">
+            <el-alert type="warning" :closable="false" show-icon>
+              该话题已被教师禁言，无法发表评论
+            </el-alert>
+          </div>
+          <div v-if="!commentMap[topic.id] || commentMap[topic.id].length === 0" class="empty-comment">
+            暂无评论，快来抢沙发！
+          </div>
+          <div class="comment-item" v-for="comment in commentMap[topic.id] || []" :key="comment.id">
+            <span>
+              <template v-if="comment.isAnonymous === 1">
+                匿名用户
+              </template>
+              <template v-else>
+                <span v-if="comment.authorType === 1" style="color:#409eff;">👨‍🏫 {{ comment.authorName }}</span>
+                <span v-else>{{ comment.authorName || '用户' }}</span>
+              </template>
+            </span>
+            <span>{{ comment.content }}</span>
+            <span style="margin-left:12px;font-size:12px;color:#999">{{ formatTime(comment.createTime) }}</span>
           </div>
         </div>
       </div>
-    </el-card>
+    </div>
 
     <!-- 编辑弹窗 -->
     <el-dialog v-model="editDialog" title="编辑话题" width="500">
@@ -140,7 +124,6 @@ import {
   setTopicTop as apiSetTopicTop,
   getCommentList as apiGetCommentList,
   addComment as apiAddComment,
-  switchDiscuss as apiSwitchDiscuss,
   disableComment as apiDisableComment,
   enableComment as apiEnableComment
 } from '@/api/topic'
@@ -155,30 +138,20 @@ const props = defineProps({
   }
 })
 
-// 课程ID：优先使用props传入，否则从URL查询参数获取
-const courseId = ref(Number(props.courseId || route.query.courseId || localStorage.getItem('currentCourseId') || 1))
+const courseId = ref(Number(props.courseId) || Number(route.query.courseId) || Number(localStorage.getItem('currentCourseId')) || 1)
 
-// 加载状态
 const loading = ref(false)
 const submitting = ref(false)
 const commentLoading = ref(false)
 
-
-// 话题列表
 const topicList = ref([])
-
-// 评论映射 { topicId: [comments] }
 const commentMap = reactive({})
 
-// 表单
 const topicForm = ref({ title: '', content: '' })
 const commentForm = reactive({})
 const editDialog = ref(false)
 const editForm = ref({ topicId: null, title: '', content: '' })
 
-// ========== 工具函数 ==========
-
-// 初始化评论表单
 const initCommentForm = (topicId) => {
   if (!commentForm[topicId]) {
     commentForm[topicId] = {
@@ -200,11 +173,7 @@ const formatTime = (time) => {
   })
 }
 
-// ========== 加载数据 ==========
-
-// 加载话题列表
 const loadTopics = async () => {
-  // ✅ 从 URL 保存 courseNo 到 localStorage
   if (route.query.courseNo) {
     localStorage.setItem('currentCourseNo', route.query.courseNo)
   }
@@ -235,7 +204,6 @@ const loadTopics = async () => {
   }
 }
 
-// 加载评论列表
 const loadReplies = async (topicId) => {
   try {
     const res = await apiGetCommentList(topicId)
@@ -248,10 +216,6 @@ const loadReplies = async (topicId) => {
   }
 }
 
-// ========== 话题操作 ==========
-
-// 发布话题
-// 发布话题
 const handlePublishTopic = async () => {
   if (!topicForm.value.title || !topicForm.value.content) {
     return ElMessage.warning('标题和内容不能为空')
@@ -264,27 +228,20 @@ const handlePublishTopic = async () => {
 
   submitting.value = true
   try {
-    // ✅ 从多个来源获取 courseNo，最后给默认值
-    const courseNo = localStorage.getItem('currentCourseNo')
-        || route.query.courseNo
-        || 'C001'  // 默认值
-
-    console.log('========== 发布话题 ==========')
-    console.log('courseNo:', courseNo)
-    console.log('courseId:', courseId.value)
+    const courseNo = localStorage.getItem('currentCourseNo') || 'C001'
 
     const data = {
       courseId: courseId.value,
       courseNo: courseNo,
       title: topicForm.value.title,
       content: topicForm.value.content,
-      //authorId: String(userInfo.id),
+      authorId: String(userInfo.id),  // ✅ 加回来
       authorName: userInfo.name || userInfo.username || '用户',
       authorType: userInfo.identity === 'teacher' ? 1 : 2,
       isAnonymous: 0
     }
 
-    console.log('最终提交数据:', data)
+    console.log('发布话题数据:', data)
 
     const res = await apiPublishTopic(data)
     if (res.code === 200) {
@@ -306,7 +263,6 @@ const handlePublishTopic = async () => {
   }
 }
 
-// 删除话题
 const handleDeleteTopic = async (topic) => {
   try {
     await ElMessageBox.confirm(`确定要删除话题「${topic.title}」吗？`, '提示', {
@@ -317,7 +273,7 @@ const handleDeleteTopic = async (topic) => {
 
     const res = await apiDeleteTopic(
         topic.id,
-        topic.authorId,  // ✅ 改这里：用话题自己的 authorId
+        topic.authorId,
         userStore.userInfo?.identity || 'student'
     )
     if (res.code === 200) {
@@ -334,7 +290,6 @@ const handleDeleteTopic = async (topic) => {
   }
 }
 
-// 置顶/取消置顶
 const handleToggleTop = async (topic) => {
   try {
     const newTop = topic.isTop === 1 ? 0 : 1
@@ -351,7 +306,6 @@ const handleToggleTop = async (topic) => {
   }
 }
 
-// 编辑话题
 const openEdit = (topic) => {
   editForm.value = {
     topicId: topic.id,
@@ -377,8 +331,8 @@ const handleSaveEdit = async () => {
       id: editForm.value.topicId,
       title: editForm.value.title,
       content: editForm.value.content,
-      authorId: String(userInfo.id),           // ✅ 添加
-      identity: userInfo.identity || 'student' // ✅ 添加
+      authorId: String(userInfo.id),
+      identity: userInfo.identity || 'student'
     }
     const res = await apiEditTopic(data)
     if (res.code === 200) {
@@ -396,9 +350,6 @@ const handleSaveEdit = async () => {
   }
 }
 
-// ========== 禁言/解禁 ==========
-
-// 禁言/解禁切换
 const handleToggleComment = async (topic) => {
   const isDisabled = topic.allowComment === 0
   const action = isDisabled ? '解禁' : '禁言'
@@ -428,9 +379,6 @@ const handleToggleComment = async (topic) => {
   }
 }
 
-// ========== 评论操作 ==========
-
-// 提交评论
 const handleSubmitComment = async (topicId) => {
   const form = commentForm[topicId]
   if (!form || !form.content) {
@@ -473,8 +421,6 @@ const handleSubmitComment = async (topicId) => {
   }
 }
 
-// ========== 生命周期 ==========
-
 onMounted(() => {
   loadTopics()
 })
@@ -482,19 +428,97 @@ onMounted(() => {
 
 <style scoped>
 .page-wrap { padding: 20px 40px; }
-.header-row { display: flex; justify-content: space-between; align-items: center; }
-.publishing-box { padding: 15px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 20px; }
-.topic-item { border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-bottom: 15px; }
-.topic-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-.topic-content { margin: 10px 0; color: #333; }
-.topic-meta { font-size: 13px; color: #999; }
-.comment-wrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; }
-.comment-input { display: flex; align-items: center; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
-.comment-item { padding: 6px 0; font-size: 14px; border-bottom: 1px solid #f5f5f5; }
-.empty-comment { color: #999; font-size: 13px; padding: 8px 0; }
-.disabled-comment { margin: 10px 0; }
+
+.publishing-box {
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  background: #fafafa;
+}
+
+.topic-item {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 15px;
+  background: #fff;
+}
+
+.topic-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.topic-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.topic-head .el-tag {
+  margin-left: 6px;
+}
+
+.topic-content {
+  margin: 10px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.topic-meta {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 12px;
+}
+
+.comment-wrap {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.comment-wrap h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #606266;
+}
+
+.comment-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+
+.comment-item {
+  padding: 6px 0;
+  font-size: 14px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.empty-comment {
+  color: #999;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.disabled-comment {
+  margin: 10px 0;
+}
+
 .ml-2 { margin-left: 8px; }
 .mt-3 { margin-top: 12px; }
 .empty-tip { padding: 40px 0; }
-.topic-operate { display: flex; gap: 4px; flex-wrap: wrap; }
+
+.topic-operate {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
 </style>

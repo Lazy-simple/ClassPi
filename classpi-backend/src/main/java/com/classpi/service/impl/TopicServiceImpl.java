@@ -242,6 +242,11 @@ public class TopicServiceImpl implements TopicService {
                 return Result.error("话题不存在");
             }
 
+            // ✅ 检查话题是否被禁言
+            if (topic.getAllowComment() != null && topic.getAllowComment() == 0) {
+                return Result.error("该话题已被教师禁言，无法发表评论");
+            }
+
             TopicReply reply = new TopicReply();
             reply.setTopicId(topicId);
             reply.setContent(content);
@@ -249,7 +254,7 @@ public class TopicServiceImpl implements TopicService {
             reply.setAuthorName(authorName);
             reply.setAuthorType(authorType);
             reply.setIsAnonymous(isAnonymous != null ? isAnonymous : 0);
-            reply.setCreateTime(new Date());  // 改用 Date
+            reply.setCreateTime(new Date());
             reply.setDeleted(0);
 
             int result = topicReplyMapper.insert(reply);
