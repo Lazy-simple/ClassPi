@@ -391,22 +391,22 @@ const submitFolder = async () => {
     ElMessage.warning('请输入文件夹名称')
     return
   }
-  
+
   const userInfo = getUserInfo()
   if (!userInfo || !userInfo.id) {
     ElMessage.warning('请重新登录')
     return
   }
-  
+
   // 获取当前课程的课程号
   const courseNo = localStorage.getItem('currentCourseNo')
   if (!courseNo) {
     ElMessage.warning('请先选择课程')
     return
   }
-  
+
   const loading = ElMessage({ message: '创建中...', type: 'warning', duration: 0 })
-  
+
   try {
     console.log('========== 创建文件夹 ==========')
     console.log('courseId:', courseId, 'type:', typeof courseId)
@@ -414,17 +414,17 @@ const submitFolder = async () => {
     console.log('folderName:', folderName)
     console.log('uploaderId:', userInfo.id, 'type:', typeof userInfo.id)
     console.log('uploaderName:', userInfo.name || userInfo.username)
-    
+
     const res = await createFolder({
       courseId: Number(courseId),
       courseNo: String(courseNo),
       folderName: String(folderName),
-      parentId: '',
+      parentId: currentParentId.value || '0',
       uploaderId: String(userInfo.id),
       uploaderName: String(userInfo.name || userInfo.username)
     })
     console.log('创建结果:', res)
-    
+
     loading.close()
     if (res && res.code === 200) {
       ElMessage.success('文件夹创建成功')
@@ -501,7 +501,7 @@ const submitLink = async () => {
       courseNo: String(courseNo),
       name: String(linkName),
       url: String(linkUrl),
-      parentId: '',
+      parentId: currentParentId.value || '0',
       uploaderId: String(userInfo.id),
       uploaderName: String(userInfo.name || userInfo.username)
     })

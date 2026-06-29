@@ -109,7 +109,7 @@ public class ResourceServiceImpl implements ResourceService {
             resource.setType("folder"); // 设置 type 字段
             resource.setFolderName(folderName);
             resource.setIsFolder(1);
-            resource.setParentId(parentId != null ? parentId : "0");
+            resource.setParentId(parentId != null && !parentId.isEmpty() ? parentId : "0");
             resource.setUploaderId(uploaderId);
             resource.setUploaderName(uploaderName);
             resource.setCreateTime(new Date());
