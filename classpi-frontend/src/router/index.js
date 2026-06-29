@@ -34,6 +34,10 @@ const routes = [
       { path: 'score', component: () => import('@/views/Teacher/ScoreManage.vue') },
       { path: 'course-resource', component: () => import('@/views/Teacher/CourseResource.vue') },
       { path: 'course-topic', component: () => import('@/views/common/CourseTopic.vue') },
+      {
+              path: 'teacher-course-detail/:courseId',
+              component: () => import('@/views/Teacher/CourseDetail.vue')
+            },
       { path: 'preparation', component: () => import('@/views/Teacher/Preparation.vue') },
       // 学生路由
       { path: 'student-course', component: () => import('@/views/Student/CourseList.vue') },

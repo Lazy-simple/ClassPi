@@ -1,6 +1,7 @@
 package com.classpi.controller;
 
 import com.classpi.common.Result;
+import com.classpi.dto.ImportPreparationDTO;
 import com.classpi.dto.PreparationCreateDTO;
 import com.classpi.service.PreparationService;
 import com.classpi.security.RequireRole;
@@ -80,5 +81,32 @@ public class PreparationController {
                                       @RequestParam String teacherId,
                                       @RequestParam String identity) {
         return preparationService.getPreparationById(id, teacherId, identity);
+    }
+
+    /**
+     * 从备课区导入资源到课程
+     * POST /preparation/import/resource
+     */
+    @PostMapping("/import/resource")
+    public Result importResource(@RequestBody ImportPreparationDTO dto, @RequestHeader("userId") String userId) {
+        return preparationService.importResource(dto, userId);
+    }
+
+    /**
+     * 从备课区导入作业到课程
+     * POST /preparation/import/homework
+     */
+    @PostMapping("/import/homework")
+    public Result importHomework(@RequestBody ImportPreparationDTO dto, @RequestHeader("userId") String userId) {
+        return preparationService.importHomework(dto, userId);
+    }
+
+    /**
+     * 从备课区导入话题到课程
+     * POST /preparation/import/topic
+     */
+    @PostMapping("/import/topic")
+    public Result importTopic(@RequestBody ImportPreparationDTO dto, @RequestHeader("userId") String userId) {
+        return preparationService.importTopic(dto, userId);
     }
 }

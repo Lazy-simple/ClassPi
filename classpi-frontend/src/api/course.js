@@ -71,6 +71,13 @@ export function dropCourse(data) {
     params: data
   })
 }
+// 【新增】根据课程ID获取课程详情
+export function getCourseById(id) {
+  return request({
+    url: `/course/${id}`, // 假设后端接口是 /course/{id}，请根据实际情况调整
+    method: 'get'
+  })
+}
 
 export function archiveCourse(courseId, archived) {
   return request({
