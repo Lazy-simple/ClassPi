@@ -232,11 +232,12 @@ public class ResourceServiceImpl implements ResourceService {
                 courseId, courseNo, file.getOriginalFilename(), parentId, uploaderId, uploaderName);
 
         try {
-            // 1. 保存文件到服务器
-            String uploadDir = "E:/计算机II课设/";
+            // 1. 保存文件到服务器 - 使用 uploads 子目录
+            String uploadDir = "E:/uploads/";
             File dir = new File(uploadDir);
             if (!dir.exists()) {
-                dir.mkdirs();
+                boolean created = dir.mkdirs();
+                logger.info("创建上传目录: {}, 结果: {}", uploadDir, created);
             }
 
             // 生成唯一文件名
