@@ -1,19 +1,23 @@
 <template>
   <div class="teacher-top-nav">
-    <!-- 左侧：返回按钮 + 当前页面标题 -->
+    <!-- 【修改处】左侧：返回按钮 + 面包屑/标题 -->
     <div class="nav-left">
-      <el-button link @click="$router.push('/main/dashboard')" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon>
-        <span>返回仪表盘</span>
-      </el-button>
+      <!-- 1. 新增返回仪表盘按钮 -->
+      <el-tooltip content="返回仪表盘" placement="bottom">
+        <el-button
+          link
+          @click="$router.push('/main/dashboard')"
+          class="back-btn"
+        >
+          <el-icon :size="20"><HomeFilled /></el-icon>
+        </el-button>
+      </el-tooltip>
 
-      <el-divider direction="vertical" />
-
-      <!-- 根据当前路由自动显示中文标题 -->
+      <!-- 2. 原有的标题 -->
       <span class="page-title">{{ currentTitle }}</span>
     </div>
 
-    <!-- 右侧：横向功能菜单 -->
+    <!-- 中间：横向菜单 (保持不变) -->
     <el-menu
       :default-active="activePath"
       router
@@ -22,56 +26,60 @@
       active-text-color="#409EFF"
     >
       <el-menu-item index="/main/teacher-course">
-        <el-icon><Reading /></el-icon> 我的课程
+        <el-icon><Reading /></el-icon> <span>我的课程</span>
       </el-menu-item>
 
       <el-menu-item index="/main/publish-homework">
-        <el-icon><EditPen /></el-icon> 发布作业
+        <el-icon><EditPen /></el-icon> <span>发布作业</span>
       </el-menu-item>
 
       <el-menu-item index="/main/check-homework">
-        <el-icon><DocumentChecked /></el-icon> 批改作业
+        <el-icon><DocumentChecked /></el-icon> <span>批改作业</span>
       </el-menu-item>
 
       <el-menu-item index="/main/score">
-        <el-icon><TrendCharts /></el-icon> 成绩管理
+        <el-icon><TrendCharts /></el-icon> <span>成绩管理</span>
       </el-menu-item>
 
       <el-menu-item index="/main/preparation">
-        <el-icon><FolderOpened /></el-icon> 备课区
+        <el-icon><FolderOpened /></el-icon> <span>备课区</span>
       </el-menu-item>
 
       <el-menu-item index="/main/course-resource">
-        <el-icon><FolderOpened /></el-icon> 教学资源
+        <el-icon><Files /></el-icon> <span>教学资源</span>
       </el-menu-item>
     </el-menu>
+
+    <!-- 右侧：留空 -->
+    <div class="nav-right"></div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
-import { ArrowLeft, Reading, EditPen, DocumentChecked, TrendCharts, FolderOpened } from '@element-plus/icons-vue';
+import { useRoute, useRouter } from 'vue-router'; // 确保引入了 useRouter
+import {
+  Reading, EditPen, DocumentChecked, TrendCharts, FolderOpened, Files,
+  HomeFilled // 【新增】引入房子图标作为返回Dashboard的标志
+} from '@element-plus/icons-vue';
 
 const route = useRoute();
+const router = useRouter();
 
-// 获取当前激活的菜单路径
+// 动态高亮当前菜单
 const activePath = computed(() => route.path);
 
-// 路由路径与中文标题的映射表（方便以后扩展）
+// 路由标题映射
 const titleMap = {
-  '/main/teacher-course': '我的课程',
-  '/main/preparation': '备课区',
+  '/main/teacher-course': '课程管理中心',
+  '/main/preparation': '在线备课室',
   '/main/publish-homework': '发布新作业',
-  '/main/check-homework': '作业批阅',
-  '/main/score': '成绩统计分析',
+  '/main/check-homework': '作业批阅台',
+  '/main/score': '学情分析报表',
   '/main/course-resource': '教学资源库'
 };
 
-// 动态计算当前页面的标题
-const currentTitle = computed(() => {
-  return titleMap[route.path] || '教师工作台';
-});
+const currentTitle = computed(() => titleMap[route.path] || '教师工作台');
 </script>
 
 <style scoped>
@@ -79,43 +87,64 @@ const currentTitle = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 60px;
-  padding: 0 24px;
+  height: 50px;
+  padding: 0 40px;
   background-color: #fff;
   border-bottom: 1px solid #ebeef5;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
+/* 【修改处】调整左侧布局，让按钮和标题挨得近一点 */
 .nav-left {
+  min-width: 180px; /*稍微加宽一点容纳按钮*/
   display: flex;
   align-items: center;
+  gap: 12px; /* 按钮和文字的间距 */
 }
 
+/* 返回按钮样式微调 */
 .back-btn {
-  font-size: 15px;
   color: #606266;
   padding: 0;
+  transition: all 0.3s;
 }
-
 .back-btn:hover {
   color: #409EFF;
+  transform: translateX(-2px); /* 悬停时微微向左动，暗示“回去” */
 }
 
 .page-title {
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 600;
   color: #303133;
+  letter-spacing: 0.5px;
 }
 
-/* 覆盖 Element Plus 菜单样式，使其更紧凑 */
+/* ...其余样式保持不变... */
 .nav-menu {
   border-bottom: none !important;
-  height: 60px;
+  height: 50px;
+  flex: 1;
+  justify-content: center;
 }
-
 .nav-menu .el-menu-item {
-  height: 60px;
-  line-height: 60px;
+  height: 50px;
+  line-height: 50px;
   font-size: 14px;
+  padding: 0 20px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+}
+.nav-menu .el-menu-item.is-active {
+  background-color: #ecf5ff;
+  color: #409EFF;
+  border-bottom-color: #409EFF;
+  border-radius: 4px 4px 0 0;
+}
+.nav-menu .el-menu-item:hover {
+  background-color: #f5f7fa;
+  color: #409EFF;
+}
+.nav-right {
+  min-width: 150px;
 }
 </style>

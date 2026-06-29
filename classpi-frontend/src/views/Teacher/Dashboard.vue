@@ -1,9 +1,8 @@
 <template>
   <div class="dashboard-container">
-    <!-- 顶部欢迎语 -->
+    <!-- 1. 顶部欢迎语区域 -->
     <header class="page-header">
       <div>
-        <!-- 动态显示用户名，如果没有则显示“老师” -->
         <h1 class="title">早安，{{ username }} 👋</h1>
         <p class="subtitle">这是您班级的今日概况，保持专注！</p>
       </div>
@@ -12,9 +11,26 @@
       </div>
     </header>
 
-    <!-- 核心数据卡片区域 (已改为可点击跳转) -->
+    <!-- 2. 【新增】核心引导区：进入工作台 -->
+    <!-- 放在最显眼的位置，解决“登录后不知道去哪”的问题 -->
+    <section class="welcome-action-section">
+      <div class="action-card" @click="goToWorkbench">
+        <div class="action-icon-wrapper">
+          <el-icon :size="32"><Monitor /></el-icon>
+        </div>
+        <div class="action-content">
+          <h3>进入教师工作台</h3>
+          <p>开始备课、发布作业或管理成绩</p>
+        </div>
+        <el-button type="primary" round size="large" class="enter-btn">
+          立即进入 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+        </el-button>
+      </div>
+    </section>
+
+    <!-- 3. 核心数据卡片区域 (保留原图标与逻辑) -->
     <section class="stats-grid">
-      <!-- 卡片 1：班级人数 -> 点击跳转课程列表 -->
+      <!-- 卡片 1：班级人数 -->
       <div class="stat-card blue-theme" @click="$router.push('/main/teacher-course')">
         <div class="icon-box">
           <el-icon :size="24"><User /></el-icon>
@@ -26,7 +42,7 @@
         <div class="hover-hint">点击查看课程 <el-icon><ArrowRight /></el-icon></div>
       </div>
 
-      <!-- 卡片 2：待批阅作业 -> 点击跳转作业批改 -->
+      <!-- 卡片 2：待批阅作业 -->
       <div class="stat-card orange-theme" @click="$router.push('/main/check-homework')">
         <div class="icon-box">
           <el-icon :size="24"><DocumentChecked /></el-icon>
@@ -38,7 +54,7 @@
         <div class="hover-hint">立即去批阅 <el-icon><ArrowRight /></el-icon></div>
       </div>
 
-      <!-- 卡片 3：平均活跃度 -> 点击跳转成绩管理 -->
+      <!-- 卡片 3：平均活跃度 -->
       <div class="stat-card green-theme" @click="$router.push('/main/score')">
         <div class="icon-box">
           <el-icon :size="24"><TrendCharts /></el-icon>
@@ -51,7 +67,7 @@
       </div>
     </section>
 
-    <!-- 下方图表占位区 -->
+    <!-- 4. 下方图表占位区 -->
     <section class="chart-section">
       <div class="card-header">
         <h3>📊 班级学习活跃度热力图</h3>
@@ -67,13 +83,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import request from '@/utils/request'; // 引入你的 axios 封装
-import { User, DocumentChecked, TrendCharts, ArrowRight } from '@element-plus/icons-vue';
+import request from '@/utils/request';
+// ✅ 保留你原来的所有图标，新增 Monitor 用于工作台按钮
+import { User, DocumentChecked, TrendCharts, ArrowRight, Monitor } from '@element-plus/icons-vue';
 
 const router = useRouter();
 
 // 1. 定义响应式数据
-// 尝试从 localStorage 获取真实用户名，如果获取不到则默认为“老师”
 let storedUser = {};
 try {
   const userStr = localStorage.getItem('userInfo');
@@ -84,7 +100,6 @@ try {
 const username = ref(storedUser.username || storedUser.name || '老师');
 const currentDate = ref(new Date().toLocaleDateString());
 
-// 初始化统计数据（给默认值防止闪烁）
 const stats = ref({
   studentCount: 0,
   pendingHomework: 0,
@@ -94,12 +109,8 @@ const stats = ref({
 // 2. 获取数据的函数
 const fetchDashboardData = async () => {
   try {
-    // 假设后端接口地址是 /api/teacher/stats
     const res = await request.get('/api/teacher/stats');
-
-    // 根据你的后端返回结构调整
     if (res.code === 200 || res.status === 200) {
-      // 这里做一个简单的兼容，防止后端字段名不一样导致页面显示 undefined
       const data = res.data || {};
       stats.value = {
         studentCount: data.studentCount || 0,
@@ -109,13 +120,15 @@ const fetchDashboardData = async () => {
     }
   } catch (error) {
     console.error('获取仪表盘数据失败:', error);
-    // 开发阶段为了看效果，如果接口报错，可以先用假数据兜底
-    // 如果你不需要假数据，可以把下面这行注释掉
-    // stats.value = { studentCount: 45, pendingHomework: 12, avgScore: 88 };
   }
 };
 
-// 3. 页面加载时执行
+// ✅ 新增：跳转到工作台的函数
+// 这里指向 /main/teacher-course 是因为通常工作台默认展示课程列表
+const goToWorkbench = () => {
+  router.push('/main/teacher-course');
+};
+
 onMounted(() => {
   fetchDashboardData();
 });
@@ -124,8 +137,10 @@ onMounted(() => {
 <style scoped>
 .dashboard-container {
   padding: 24px;
-  background-color: #f5f7fa; /* 浅灰背景 */
+  background-color: #f5f7fa;
   min-height: 100vh;
+  max-width: 1400px; /* 增加最大宽度限制，防止在大屏上太散 */
+  margin: 0 auto;
 }
 
 .page-header {
@@ -155,10 +170,69 @@ onMounted(() => {
   color: #606266;
 }
 
-/* 卡片网格布局 */
+/* ✅ 新增：工作台引导卡片样式 */
+.welcome-action-section {
+  margin-bottom: 24px;
+}
+
+.action-card {
+  background: linear-gradient(135deg, #409EFF 0%, #79bbff 100%);
+  border-radius: 16px;
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.3);
+}
+
+.action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(64, 158, 255, 0.4);
+}
+
+.action-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24px;
+  backdrop-filter: blur(4px);
+}
+
+.action-content h3 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.action-content p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.enter-btn {
+  background: #fff;
+  color: #409EFF;
+  border: none;
+  font-weight: bold;
+  padding: 12px 32px;
+}
+
+.enter-btn:hover {
+  background: #ecf5ff;
+}
+
+/* 原有卡片样式保持不变 */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
   margin-bottom: 24px;
 }
@@ -171,17 +245,18 @@ onMounted(() => {
   align-items: center;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
-  cursor: pointer; /* 鼠标变成手型 */
+  cursor: pointer;
   position: relative;
   overflow: hidden;
+  border: 1px solid transparent;
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: #dcdfe6;
 }
 
-/* 新增：鼠标悬停时的提示文字 */
 .hover-hint {
   position: absolute;
   bottom: -20px;
