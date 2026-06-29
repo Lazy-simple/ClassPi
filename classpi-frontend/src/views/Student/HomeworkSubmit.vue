@@ -1,5 +1,11 @@
 <template>
   <div class="homework-submit-page">
+    <!-- 返回按钮 -->
+    <div class="back-bar">
+      <el-button text type="primary" @click="goBack">
+        <el-icon><ArrowLeft /></el-icon> 返回课程
+      </el-button>
+    </div>
     <div class="submit-container">
       <!-- 作业信息卡片 -->
       <div class="assignment-info-card">
@@ -111,15 +117,16 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { submitHomework, getHomeworkByCourse } from '@/api/homework'
 import { getStudentCourses } from '@/api/course'
 import UploadFile from '@/components/UploadFile.vue'
 import { ElMessage } from 'element-plus'
-import { DocumentChecked, UploadFilled, Warning } from '@element-plus/icons-vue'
+import { DocumentChecked, UploadFilled, Warning, ArrowLeft } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const submitting = ref(false)
 const isSubmitted = ref(false)
@@ -305,6 +312,15 @@ const submitHomeworkHandler = async () => {
   }
 }
 
+const goBack = () => {
+  const courseId = localStorage.getItem('currentCourseId')
+  if (courseId) {
+    router.push(`/main/course-detail/${courseId}`)
+  } else {
+    router.push('/main/student-course')
+  }
+}
+
 onMounted(() => {
   loadCourses()
 })
@@ -315,6 +331,16 @@ onMounted(() => {
   padding: 30px;
   background-color: #f5f7fa;
   min-height: 100vh;
+}
+
+.back-bar {
+  max-width: 900px;
+  margin: 0 auto 10px auto;
+}
+
+.back-bar .el-button {
+  font-size: 14px;
+  padding: 8px 0;
 }
 
 .submit-container {
