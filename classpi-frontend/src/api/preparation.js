@@ -1,65 +1,65 @@
-import request from '@/utils/request'
+import request from '@/utils/request';
 
-// 获取教师的备课列表（用于备课区页面）
-export function getTeacherPreparations(teacherId, page, pageSize) {
+export const getTeacherPreparations = (teacherId, page = 1, pageSize = 10) => {
   return request({
-    url: '/api/preparation/teacher/list',
+    url: `/preparation/teacher/${teacherId}`,
     method: 'get',
-    params: { teacherId, page, pageSize }
-  })
-}
+    params: { page, pageSize }
+  });
+};
 
-// 根据类型获取备课列表
-export function getTeacherPreparationsByType(teacherId, type, page, pageSize) {
+export const getTeacherPreparationsByType = (teacherId, type, page = 1, pageSize = 10) => {
   return request({
-    url: '/api/preparation/teacher/list/type',
+    url: `/preparation/teacher/${teacherId}/type/${type}`,
     method: 'get',
-    params: { teacherId, type, page, pageSize }
-  })
-}
+    params: { page, pageSize }
+  });
+};
 
-// 新增备课内容
-export function addPreparation(data) {
+export const getUnassignedPreparations = (teacherId, page = 1, pageSize = 10) => {
   return request({
-    url: '/api/preparation',
+    url: `/preparation/teacher/${teacherId}/unassigned`,
+    method: 'get',
+    params: { page, pageSize }
+  });
+};
+
+export const addPreparation = (data) => {
+  return request({
+    url: '/preparation/add',
     method: 'post',
     data
-  })
-}
+  });
+};
 
-// 更新备课内容
-export function updatePreparation(id, data) {
+export const updatePreparation = (id, data) => {
   return request({
-    url: `/api/preparation/${id}`,
+    url: `/preparation/${id}`,
     method: 'put',
-    data
-  })
-}
+    params: data
+  });
+};
 
-// 删除备课内容
-export function deletePreparation(id, teacherId, identity) {
+export const deletePreparation = (id, teacherId, identity) => {
   return request({
-    url: `/api/preparation/${id}`,
+    url: `/preparation/${id}`,
     method: 'delete',
     params: { teacherId, identity }
-  })
-}
+  });
+};
 
-// 分配备课内容到课程
-export function assignToCourse(id, courseId, courseNo, teacherId, identity) {
+export const getPreparationById = (id, teacherId, identity) => {
   return request({
-    url: '/api/preparation/assign',
-    method: 'post',
-    data: { id, courseId, courseNo, teacherId, identity }
-  })
-}
-
-// 【核心修复】获取未分配的备课内容（用于发布作业时导入）
-// 这个函数就是 HomeworkPublish.vue 报错时寻找的
-export function getUnassignedPreparations(teacherId, page, pageSize) {
-  return request({
-    url: '/api/preparation/unassigned',
+    url: `/preparation/${id}`,
     method: 'get',
-    params: { teacherId, page, pageSize }
-  })
-}
+    params: { teacherId, identity }
+  });
+};
+
+export const assignToCourse = (id, courseId, courseNo, teacherId, identity) => {
+  return request({
+    url: `/preparation/${id}/assign`,
+    method: 'put',
+    params: { courseId, courseNo, teacherId, identity }
+  });
+};
