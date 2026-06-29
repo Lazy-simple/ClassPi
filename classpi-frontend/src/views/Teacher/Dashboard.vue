@@ -126,7 +126,12 @@ const fetchDashboardData = async () => {
 // ✅ 新增：跳转到工作台的函数
 // 这里指向 /main/teacher-course 是因为通常工作台默认展示课程列表
 const goToWorkbench = () => {
-  router.push('/main/teacher-course');
+  console.log('点击立即进入，准备跳转到 /main/teacher-course');
+  router.push('/main/teacher-course').then(() => {
+    console.log('路由跳转成功');
+  }).catch((err) => {
+    console.error('路由跳转失败:', err);
+  });
 };
 
 onMounted(() => {

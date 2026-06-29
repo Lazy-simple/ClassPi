@@ -18,6 +18,11 @@ public class Homework {
     private String fileType;
     private LocalDateTime publishTime;
     private LocalDateTime deadline;
+    private Integer fullScore;
+    private Integer enableCheck;
+    private Integer checkThreshold;
+    private Integer autoReject;
+    private Integer rejectThreshold;
     @TableLogic
     private Integer deleted;
 

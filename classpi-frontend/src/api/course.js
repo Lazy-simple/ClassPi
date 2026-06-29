@@ -80,7 +80,15 @@ export function dropCourse(data) {
 // 【新增】根据课程ID获取课程详情
 export function getCourseById(id) {
   return request({
-    url: `/course/${id}`, // 假设后端接口是 /course/{id}，请根据实际情况调整
+    url: `/course/${id}`,
+    method: 'get'
+  })
+}
+
+// 【新增】根据课程号获取课程详情（用于加入课程）
+export function getCourseByNo(courseNo) {
+  return request({
+    url: `/course/no/${courseNo}`,
     method: 'get'
   })
 }

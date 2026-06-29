@@ -191,7 +191,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { publishHomework, getHomeworkList } from '@/api/homework';
 import { getTeacherCourses } from '@/api/course';
-import { getUnassignedPreparations } from '@/api/preparation';
+import { getTeacherPreparationsByType, getTeacherPreparations } from '@/api/preparation';
 import { ElMessage } from 'element-plus';
 import { Upload, FolderOpened } from '@element-plus/icons-vue';
 import { useUserStore } from '@/store/user';
@@ -224,11 +224,29 @@ const courseHomeworkList = ref([]);
 const importCourseId = ref(null);
 const selectedCourseHomeworkId = ref(null);
 
+const loadPreparationList = async () => {
+  try {
+    const res = await getTeacherPreparations(userStore.userInfo?.id, 1, 50);
+    if (res.code === 200) {
+      preparationList.value = res.data?.records || [];
+    }
+  } catch (error) {
+    console.error('加载备课内容失败:', error);
+  }
+};
+
 const loadCourses = async () => {
   try {
     const res = await getTeacherCourses(userStore.userInfo?.id);
     if (res.code === 200) {
-      courseList.value = res.data || [];
+      const data = res.data || [];
+      const uniqueMap = new Map();
+      data.forEach(course => {
+        if (!uniqueMap.has(course.id) && course.name) {
+          uniqueMap.set(course.id, JSON.parse(JSON.stringify(course)));
+        }
+      });
+      courseList.value = Array.from(uniqueMap.values());
     }
   } catch (error) {
     console.error('加载课程失败:', error);
@@ -240,16 +258,17 @@ const formatTime = (time) => {
   return new Date(time).toLocaleString('zh-CN');
 };
 
-const loadPreparationList = async () => {
-  try {
-    const res = await getUnassignedPreparations(userStore.userInfo?.id, 1, 50);
-    if (res.code === 200) {
-      preparationList.value = (res.data?.records || []).filter(item => item.type === 'homework');
-    }
-  } catch (error) {
-    console.error('加载备课内容失败:', error);
+watch(showImportDialog, (newVal) => {
+  if (newVal) {
+    loadPreparationList();
+    loadCourses();
+  } else {
+    selectedPreparationId.value = null;
+    selectedCourseHomeworkId.value = null;
+    importCourseId.value = null;
+    courseHomeworkList.value = [];
   }
-};
+});
 
 const handleImportTabChange = () => {
   if (importTab.value === 'preparation') {
@@ -257,6 +276,7 @@ const handleImportTabChange = () => {
   } else {
     courseHomeworkList.value = [];
     selectedCourseHomeworkId.value = null;
+    importCourseId.value = null;
   }
 };
 
@@ -290,6 +310,9 @@ const submitImport = async () => {
     if (item) {
       form.value.title = item.title;
       form.value.content = item.content;
+      if (item.courseId) {
+        form.value.courseId = Number(item.courseId);
+      }
     }
   } else {
     if (!selectedCourseHomeworkId.value) {
@@ -300,6 +323,9 @@ const submitImport = async () => {
     if (item) {
       form.value.title = item.title;
       form.value.content = item.content;
+      if (item.courseId) {
+        form.value.courseId = Number(item.courseId);
+      }
     }
   }
   ElMessage.success('导入成功');
@@ -340,9 +366,9 @@ const submit = async () => {
       content: form.value.content,
       deadline: form.value.deadline,
       fullScore: form.value.fullScore,
-      enableCheck: form.value.enableCheck,
+      enableCheck: form.value.enableCheck ? 1 : 0,
       checkThreshold: form.value.checkThreshold,
-      autoReject: form.value.autoReject,
+      autoReject: form.value.autoReject ? 1 : 0,
       rejectThreshold: form.value.rejectThreshold,
       fileUrl: form.value.files?.[0]?.url || '',
       fileName: form.value.files?.[0]?.name || '',
