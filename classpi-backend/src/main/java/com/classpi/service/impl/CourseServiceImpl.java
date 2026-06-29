@@ -11,6 +11,9 @@ import com.classpi.service.CourseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import java.util.List;
 
@@ -257,5 +260,71 @@ public class CourseServiceImpl implements CourseService {
         List<StudentCourse> studentList = studentCourseMapper.selectList(wrapper);
         // 你之前修复的必须带msg参数
         return Result.success("查询选课学生列表成功", studentList);
+    }
+
+    @Override
+    public Result getTeacherCourses(String teacherId, Boolean includeArchived) {
+        QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("teacher_id", teacherId);
+
+        // ✅ 如果不包含归档，只查进行中的
+        if (!includeArchived) {
+            queryWrapper.eq("status", 0);
+        }
+
+        List<Course> courses = courseMapper.selectList(queryWrapper);
+        return Result.success("获取教师课程列表成功", courses);
+    }
+
+    @Override
+    public Result getStudentCourses(String studentId, Boolean includeArchived) {
+        QueryWrapper<StudentCourse> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("student_id", studentId)
+                .eq("status", 1);
+        List<StudentCourse> courses = studentCourseMapper.selectList(queryWrapper);
+
+        if (courses.isEmpty()) {
+            return Result.success("该学生暂无已选课程", courses);
+        }
+
+        // ✅ 如果不包含归档，过滤掉已归档的课程
+        if (!includeArchived) {
+            List<Integer> courseIds = courses.stream()
+                    .map(StudentCourse::getCourseId)
+                    .collect(Collectors.toList());
+            if (!courseIds.isEmpty()) {
+                QueryWrapper<Course> courseWrapper = new QueryWrapper<>();
+                courseWrapper.in("id", courseIds)
+                        .eq("status", 0);
+                List<Course> activeCourses = courseMapper.selectList(courseWrapper);
+                Set<Integer> activeIds = activeCourses.stream()
+                        .map(Course::getId)
+                        .collect(Collectors.toSet());
+                courses = courses.stream()
+                        .filter(sc -> activeIds.contains(sc.getCourseId()))
+                        .collect(Collectors.toList());
+            }
+        }
+
+        return Result.success("获取学生课程列表成功", courses);
+    }
+
+    @Override
+    @Transactional
+    public Result archiveCourse(Integer id, Boolean archived) {
+        Course course = courseMapper.selectById(id);
+        if (course == null) {
+            return Result.error("课程不存在");
+        }
+
+        course.setStatus(archived ? 1 : 0);
+        int result = courseMapper.updateById(course);
+
+        if (result > 0) {
+            String msg = archived ? "课程已归档" : "课程已恢复";
+            return Result.success(msg, course);
+        } else {
+            return Result.error("操作失败");
+        }
     }
 }

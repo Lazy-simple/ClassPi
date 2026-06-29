@@ -35,12 +35,6 @@ public class CourseController {
         return courseService.deleteCourse(id);
     }
 
-    // 获取教师的课程列表
-    @GetMapping("/teacher/{teacherId}")
-    public Result getTeacherCourses(@PathVariable String teacherId) {
-        return courseService.getTeacherCourses(teacherId);
-    }
-
     // 获取所有课程（学生选课用）
     @GetMapping("/list")
     public Result getAllCourses() {
@@ -67,12 +61,6 @@ public class CourseController {
         return courseService.selectCourse(studentId, studentName, courseId);
     }
 
-    // 获取学生已选课程列表
-    @GetMapping("/student/{studentId}")
-    public Result getStudentCourses(@PathVariable String studentId) {
-        return courseService.getStudentCourses(studentId);
-    }
-
     // 学生退选课程
     @PostMapping("/drop")
     public Result dropCourse(@RequestParam String studentId, 
@@ -86,5 +74,25 @@ public class CourseController {
     @GetMapping("/{courseId}/allStudent")
     public Result<List<StudentCourse>> getCourseAllStudent(@PathVariable Integer courseId){
         return courseService.getCourseAllStudent(courseId);
+    }
+
+    // 获取教师的课程列表
+    @GetMapping("/teacher/{teacherId}")
+    public Result getTeacherCourses(@PathVariable String teacherId,
+                                    @RequestParam(defaultValue = "false") Boolean includeArchived) {
+        return courseService.getTeacherCourses(teacherId, includeArchived);
+    }
+
+    // 获取学生已选课程列表
+    @GetMapping("/student/{studentId}")
+    public Result getStudentCourses(@PathVariable String studentId,
+                                    @RequestParam(defaultValue = "false") Boolean includeArchived) {
+        return courseService.getStudentCourses(studentId, includeArchived);
+    }
+
+    // 归档/取消归档课程
+    @PutMapping("/{id}/archive")
+    public Result archiveCourse(@PathVariable Integer id, @RequestParam Boolean archived) {
+        return courseService.archiveCourse(id, archived);
     }
 }

@@ -6,10 +6,11 @@ export function getCourseList() {
 }
 
 // 获取教师课程列表
-export function getTeacherCourses(teacherId) {
+export function getTeacherCourses(teacherId, includeArchived = false) {
   return request({
     url: `/course/teacher/${teacherId}`,
-    method: 'get'
+    method: 'get',
+    params: { includeArchived }
   })
 }
 
@@ -74,5 +75,14 @@ export function dropCourse(data) {
     url: '/course/drop',
     method: 'post',
     params: data
+  })
+}
+
+// 归档/取消归档课程
+export function archiveCourse(courseId, archived) {
+  return request({
+    url: `/course/${courseId}/archive`,
+    method: 'put',
+    params: { archived }
   })
 }
