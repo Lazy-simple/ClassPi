@@ -31,7 +31,7 @@
     <!-- 3. 核心数据卡片区域 (保留原图标与逻辑) -->
     <section class="stats-grid">
       <!-- 卡片 1：班级人数 -->
-      <div class="stat-card blue-theme" @click="$router.push('/main/teacher-course')">
+      <div class="stat-card blue-theme" @click="openStudentList">
         <div class="icon-box">
           <el-icon :size="24"><User /></el-icon>
         </div>
@@ -39,7 +39,7 @@
           <span class="label">班级总人数</span>
           <span class="value">{{ stats.studentCount }}</span>
         </div>
-        <div class="hover-hint">点击查看课程 <el-icon><ArrowRight /></el-icon></div>
+        <div class="hover-hint">点击查看学生列表 <el-icon><ArrowRight /></el-icon></div>
       </div>
 
       <!-- 卡片 2：待批阅作业 -->
@@ -77,6 +77,19 @@
         <el-empty description="暂无数据，请等待后端接入图表组件" />
       </div>
     </section>
+
+    <!-- 学生列表弹窗 -->
+    <el-dialog v-model="studentDialogVisible" title="班级学生列表" width="650px" destroy-on-close>
+      <el-table :data="studentList" border>
+        <el-table-column label="学生ID" prop="studentId" width="100" />
+        <el-table-column label="学生姓名" prop="studentName" />
+        <el-table-column label="课程名称" prop="courseName" />
+        <el-table-column label="选课状态" prop="status" :formatter="formatStatus" width="120" />
+      </el-table>
+      <template #footer>
+        <el-button @click="studentDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -84,8 +97,10 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '@/utils/request';
+import { getTeacherCourses, getCourseAllStudent } from '@/api/course';
 // ✅ 保留你原来的所有图标，新增 Monitor 用于工作台按钮
 import { User, DocumentChecked, TrendCharts, ArrowRight, Monitor } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
 
 const router = useRouter();
 
@@ -99,7 +114,6 @@ try {
 }
 const username = ref(storedUser.username || storedUser.name || '老师');
 const currentDate = ref(new Date().toLocaleDateString());
-
 const stats = ref({
   studentCount: 0,
   pendingHomework: 0,
@@ -132,6 +146,53 @@ const goToWorkbench = () => {
   }).catch((err) => {
     console.error('路由跳转失败:', err);
   });
+};
+
+// 学生列表弹窗
+const studentDialogVisible = ref(false);
+const studentList = ref([]);
+
+const openStudentList = async () => {
+  studentDialogVisible.value = true;
+  studentList.value = [];
+  try {
+    const teacherId = storedUser.id || storedUser.teacherId;
+    if (!teacherId) {
+      ElMessage.error('未获取到教师信息');
+      return;
+    }
+    const courseRes = await getTeacherCourses(teacherId, true);
+    console.log('教师课程列表:', courseRes);
+    const courses = courseRes.data || courseRes.list || [];
+    const allStudents = [];
+    for (const course of courses) {
+      try {
+        const courseId = course.courseId || course.id;
+        const res = await getCourseAllStudent(courseId);
+        console.log('课程学生:', course.courseName, res);
+        if (res.code === 200 && res.data) {
+          res.data.forEach(s => {
+            allStudents.push({
+              ...s,
+              courseName: course.courseName
+            });
+          });
+        }
+      } catch (e) {
+        console.error('获取课程学生失败:', course.courseName, e);
+      }
+    }
+    studentList.value = allStudents;
+    console.log('最终学生列表:', studentList.value);
+  } catch (err) {
+    console.error('获取学生列表异常:', err);
+    ElMessage.error('获取学生列表失败');
+    studentList.value = [];
+  }
+};
+
+const formatStatus = (row) => {
+  return row.status === 1 ? "正常选课" : "已退选";
 };
 
 onMounted(() => {
