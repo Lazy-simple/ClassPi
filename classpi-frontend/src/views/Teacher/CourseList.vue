@@ -18,91 +18,172 @@
       </div>
     </div>
 
-    <!-- 关键：课程卡片 + 创建课程卡片 放在同一个 grid 里 -->
-    <div class="course-grid">
-      <!-- 可拖拽的课程卡片 -->
-      <draggable
-        v-model="displayCourses"
-        item-key="id"
-        ghost-class="drag-ghost"
-        chosen-class="drag-chosen"
-        drag-class="drag-active"
-        @change="onMainSortChange"
-        style="display: contents;"
-      >
-        <template #item="{ element }">
-          <div
-            class="course-card"
-            :class="{ 'archived-card': isCourseArchived(element) }"
-            @click="enterCourse(element)"
-          >
-            <div class="course-cover">
-              <div class="cover-bg" :style="{ background: getCoverColor(element.id) }"></div>
-              <div class="cover-content">
-                <div class="course-title">{{ element.name }}</div>
-                <div class="course-subtitle" v-if="element.department">{{ element.department }}</div>
+    <!-- 置顶课程 -->
+    <div v-if="pinnedCourses.length > 0" class="section-block">
+      <div class="section-title">
+        <span class="title-dot warning"></span>
+        <h3>📌 置顶课程 ({{ pinnedCourses.length }})</h3>
+      </div>
+      <div class="course-grid">
+        <div
+          class="course-card pinned-card"
+          v-for="course in pinnedCourses"
+          :key="'pin-' + course.id"
+          @click="enterCourse(course)"
+        >
+          <div class="course-cover">
+            <div class="cover-bg" :style="{ background: getCoverColor(course.id) }"></div>
+            <div class="cover-content">
+              <div class="course-title">{{ course.name }}</div>
+              <div class="course-subtitle" v-if="course.department">{{ course.department }}</div>
+            </div>
+            <div class="pinned-badge">置顶</div>
+            <div class="teacher-badge" v-if="isTeacherOfCourse(course)">教</div>
+            <el-dropdown
+              class="more-dropdown"
+              trigger="click"
+              @command="handleCommand"
+              @click.stop
+            >
+              <div class="more-btn" @click.stop>
+                <el-icon><MoreFilled /></el-icon>
               </div>
-              <div class="teacher-badge" v-if="isTeacherOfCourse(element)">教</div>
-              <el-dropdown
-                class="more-dropdown"
-                trigger="click"
-                @command="handleCommand"
-                @visible-change="(v) => onDropdownVisible(v, element)"
-              >
-                <div class="more-btn" @click.stop>
-                  <el-icon><MoreFilled /></el-icon>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item :command="{ action: 'edit', course: element }">编辑</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'delete', course: element }">删除</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'archive', course: element }" v-if="!isCourseArchived(element)">归档</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'restore', course: element }" v-if="isCourseArchived(element)">恢复课程</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'download', course: element }">打包下载</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item :command="{ action: 'unpin', course }">取消置顶</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'edit', course }">编辑</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'delete', course }">删除</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'archive', course }" v-if="!isCourseArchived(course)">归档</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'restore', course }" v-if="isCourseArchived(course)">恢复课程</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'download', course }">打包下载</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+
+          <div class="course-body">
+            <div class="course-code-row">
+              <el-icon><Grid /></el-icon>
+              <span>加课码：</span>
+              <span class="course-code">{{ course.courseNo }}</span>
             </div>
 
-            <div class="course-body">
-              <div class="course-code-row">
-                <el-icon><Grid /></el-icon>
-                <span>加课码：</span>
-                <span class="course-code">{{ element.courseNo }}</span>
-                <el-icon class="arrow-down"><ArrowDown /></el-icon>
-              </div>
-
-              <div class="homework-section">
-                <div class="section-label">近期作业</div>
-                <div class="homework-list">
-                  <div class="homework-item" v-for="(hw, i) in getRecentHomework(element)" :key="i">
-                    {{ hw }}
-                  </div>
+            <div class="homework-section">
+              <div class="section-label">近期作业</div>
+              <div class="homework-list">
+                <div class="homework-item" v-for="(hw, i) in getRecentHomework(course)" :key="i">
+                  {{ hw }}
                 </div>
-              </div>
-            </div>
-
-            <div class="course-footer">
-              <div class="member-info">
-                <el-icon><Avatar /></el-icon>
-                <span>成员{{ element.enrolledCount || 0 }}人</span>
-              </div>
-              <div class="footer-actions">
-                <el-button link size="small" class="top-btn">置顶</el-button>
-                <el-button link size="small" class="more-btn-link" @click.stop="openMoreMenu(element)">
-                  更多 <el-icon><ArrowDown /></el-icon>
-                </el-button>
               </div>
             </div>
           </div>
-        </template>
-      </draggable>
 
-      <!-- 创建课程卡片，和课程卡片在同一行 -->
-      <div class="course-card create-card" @click="openAddModal">
-        <div class="create-inner">
-          <el-icon class="create-icon"><Plus /></el-icon>
-          <div class="create-text">创建课程</div>
+          <div class="course-footer">
+            <div class="member-info">
+              <el-icon><Avatar /></el-icon>
+              <span>成员{{ course.enrolledCount || 0 }}人</span>
+            </div>
+            <div class="footer-actions">
+              <el-button link size="small" class="top-btn" @click.stop="togglePin(course)">
+                取消置顶
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关键：课程卡片 + 创建课程卡片 放在同一个 grid 里 -->
+    <div class="section-block">
+      <div class="section-title">
+        <span class="title-dot"></span>
+        <h3>全部课程 ({{ unpinnedCourses.length + 1 }})</h3>
+      </div>
+      <div class="course-grid">
+        <!-- 可拖拽的课程卡片 -->
+        <draggable
+          v-model="unpinnedCourses"
+          item-key="id"
+          ghost-class="drag-ghost"
+          chosen-class="drag-chosen"
+          drag-class="drag-active"
+          @change="onMainSortChange"
+          style="display: contents;"
+        >
+          <template #item="{ element }">
+            <div
+              class="course-card"
+              :class="{ 'archived-card': isCourseArchived(element) }"
+              @click="enterCourse(element)"
+            >
+              <div class="course-cover">
+                <div class="cover-bg" :style="{ background: getCoverColor(element.id) }"></div>
+                <div class="cover-content">
+                  <div class="course-title">{{ element.name }}</div>
+                  <div class="course-subtitle" v-if="element.department">{{ element.department }}</div>
+                </div>
+                <div class="teacher-badge" v-if="isTeacherOfCourse(element)">教</div>
+                <el-dropdown
+                  class="more-dropdown"
+                  trigger="click"
+                  @command="handleCommand"
+                  @visible-change="(v) => onDropdownVisible(v, element)"
+                >
+                  <div class="more-btn" @click.stop>
+                    <el-icon><MoreFilled /></el-icon>
+                  </div>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item :command="{ action: 'pin', course: element }">置顶</el-dropdown-item>
+                      <el-dropdown-item :command="{ action: 'edit', course: element }">编辑</el-dropdown-item>
+                      <el-dropdown-item :command="{ action: 'delete', course: element }">删除</el-dropdown-item>
+                      <el-dropdown-item :command="{ action: 'archive', course: element }" v-if="!isCourseArchived(element)">归档</el-dropdown-item>
+                      <el-dropdown-item :command="{ action: 'restore', course: element }" v-if="isCourseArchived(element)">恢复课程</el-dropdown-item>
+                      <el-dropdown-item :command="{ action: 'download', course: element }">打包下载</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+
+              <div class="course-body">
+                <div class="course-code-row">
+                  <el-icon><Grid /></el-icon>
+                  <span>加课码：</span>
+                  <span class="course-code">{{ element.courseNo }}</span>
+                  <el-icon class="arrow-down"><ArrowDown /></el-icon>
+                </div>
+
+                <div class="homework-section">
+                  <div class="section-label">近期作业</div>
+                  <div class="homework-list">
+                    <div class="homework-item" v-for="(hw, i) in getRecentHomework(element)" :key="i">
+                      {{ hw }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="course-footer">
+                <div class="member-info">
+                  <el-icon><Avatar /></el-icon>
+                  <span>成员{{ element.enrolledCount || 0 }}人</span>
+                </div>
+                <div class="footer-actions">
+                  <el-button link size="small" class="top-btn" @click.stop="togglePin(element)">
+                    置顶
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </draggable>
+
+        <!-- 创建课程卡片，和课程卡片在同一行 -->
+        <div class="course-card create-card" @click="openAddModal">
+          <div class="create-inner">
+            <el-icon class="create-icon"><Plus /></el-icon>
+            <div class="create-text">创建课程</div>
+          </div>
         </div>
       </div>
     </div>
@@ -270,12 +351,12 @@ const saveExtraData = (data) => {
 
 const getCourseExtra = (courseId) => {
   const extra = getExtraData();
-  return extra[courseId] || { sortOrder: 9999, archiveSelf: false };
+  return extra[courseId] || { sortOrder: 9999, archiveSelf: false, pinned: false };
 };
 
 const setCourseExtra = (courseId, key, value) => {
   const extra = getExtraData();
-  if (!extra[courseId]) extra[courseId] = { sortOrder: 9999, archiveSelf: false };
+  if (!extra[courseId]) extra[courseId] = { sortOrder: 9999, archiveSelf: false, pinned: false };
   extra[courseId][key] = value;
   saveExtraData(extra);
 };
@@ -284,6 +365,19 @@ const isCourseArchived = (course) => {
   if (course.status === 1) return true;
   const extra = getCourseExtra(course.id);
   return extra.archiveSelf === true;
+};
+
+const isPinned = (course) => {
+  const extra = getCourseExtra(course.id);
+  return extra.pinned === true;
+};
+
+const togglePin = (course) => {
+  const extra = getCourseExtra(course.id);
+  const newPinned = !extra.pinned;
+  setCourseExtra(course.id, 'pinned', newPinned);
+  ElMessage.success(newPinned ? '已置顶' : '已取消置顶');
+  initDisplayCourses();
 };
 
 const isTeacherOfCourse = (course) => {
@@ -300,14 +394,28 @@ const getRecentHomework = (course) => {
   return homeworks.slice(0, 2 + (course.id % 2));
 };
 
-// 核心：主页面可拖拽的课程列表
-const displayCourses = ref([]);
+// 核心：主页面可拖拽的课程列表（非置顶）
+const unpinnedCourses = ref([]);
+const pinnedCourses = ref([]);
 
 // 从接口数据初始化并排序
 const initDisplayCourses = () => {
   const active = courseList.value.filter(c => !isCourseArchived(c));
   const extra = getExtraData();
-  displayCourses.value = active.sort((a, b) => {
+  
+  const pinned = active.filter(c => isPinned(c));
+  const unpinned = active.filter(c => !isPinned(c));
+  
+  // 置顶课程按置顶顺序排序
+  pinnedCourses.value = pinned.sort((a, b) => {
+    const orderA = extra[a.id]?.pinOrder ?? 9999;
+    const orderB = extra[b.id]?.pinOrder ?? 9999;
+    if (orderA !== orderB) return orderA - orderB;
+    return b.id - a.id;
+  });
+  
+  // 非置顶课程按拖拽排序
+  unpinnedCourses.value = unpinned.sort((a, b) => {
     const orderA = extra[a.id]?.sortOrder ?? 9999;
     const orderB = extra[b.id]?.sortOrder ?? 9999;
     if (orderA !== orderB) return orderA - orderB;
@@ -316,7 +424,7 @@ const initDisplayCourses = () => {
 };
 
 const sortedCourses = computed(() => {
-  return displayCourses.value;
+  return unpinnedCourses.value;
 });
 
 const archivedCourses = computed(() => {
@@ -346,7 +454,7 @@ const initSortOrder = () => {
   let changed = false;
   courseList.value.forEach((course, idx) => {
     if (!extra[course.id]) {
-      extra[course.id] = { sortOrder: idx, archiveSelf: false };
+      extra[course.id] = { sortOrder: idx, archiveSelf: false, pinned: false };
       changed = true;
     }
   });
@@ -355,10 +463,10 @@ const initSortOrder = () => {
 
 // 拖拽排序保存逻辑（主页面和弹窗共用）
 const saveSortOrder = () => {
-  const list = displayCourses.value;
+  const list = unpinnedCourses.value;
   const extra = getExtraData();
   list.forEach((course, idx) => {
-    if (!extra[course.id]) extra[course.id] = { sortOrder: idx, archiveSelf: false };
+    if (!extra[course.id]) extra[course.id] = { sortOrder: idx, archiveSelf: false, pinned: false };
     extra[course.id].sortOrder = idx;
   });
   saveExtraData(extra);
@@ -406,6 +514,12 @@ const enterCourse = (course) => {
 
 const handleCommand = async ({ action, course }) => {
   switch (action) {
+    case 'pin':
+      togglePin(course);
+      break;
+    case 'unpin':
+      togglePin(course);
+      break;
     case 'edit':
       editCourse(course);
       break;
@@ -590,6 +704,52 @@ onMounted(loadCourses);
   font-size: 13px;
 }
 
+.section-block {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title-dot {
+  width: 4px;
+  height: 18px;
+  background-color: #909399;
+  border-radius: 2px;
+  margin-right: 10px;
+}
+
+.title-dot.warning {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.section-title h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #303133;
+  font-weight: 500;
+}
+
+.pinned-card {
+  border-color: #fa709a;
+}
+
+.pinned-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #e6a23c;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 2;
+}
+
 .course-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -604,6 +764,8 @@ onMounted(loadCourses);
   transition: all 0.3s;
   cursor: pointer;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .course-card:hover {
@@ -701,6 +863,7 @@ onMounted(loadCourses);
 
 .course-body {
   padding: 12px 16px;
+  flex: 1;
 }
 
 .course-code-row {
@@ -778,9 +941,9 @@ onMounted(loadCourses);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
   border: 1px dashed #dcdfe6;
   background: #fafafa;
+  min-height: 100%;
 }
 
 .create-card:hover {
