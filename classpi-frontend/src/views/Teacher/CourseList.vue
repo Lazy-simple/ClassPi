@@ -79,7 +79,7 @@
           </div>
 
           <div class="course-footer">
-            <div class="member-info">
+            <div class="member-info" @click.stop="openStudentDialog(course)" style="cursor: pointer;">
               <el-icon><Avatar /></el-icon>
               <span>成员{{ course.enrolledCount || 0 }}人</span>
             </div>
@@ -164,7 +164,7 @@
               </div>
 
               <div class="course-footer">
-                <div class="member-info">
+                <div class="member-info" @click.stop="openStudentDialog(element)" style="cursor: pointer;">
                   <el-icon><Avatar /></el-icon>
                   <span>成员{{ element.enrolledCount || 0 }}人</span>
                 </div>
@@ -286,6 +286,18 @@
         <el-button type="primary" @click="doArchive('self')">归档自己</el-button>
       </template>
     </el-dialog>
+
+    <!-- 学生列表弹窗 -->
+    <el-dialog v-model="studentDialogVisible" title="课程学生列表" width="650px" destroy-on-close>
+      <el-table :data="studentList" border>
+        <el-table-column label="学生ID" prop="studentId" width="100" />
+        <el-table-column label="学生姓名" prop="studentName" />
+        <el-table-column label="选课状态" prop="status" :formatter="formatStatus" width="120" />
+      </el-table>
+      <template #footer>
+        <el-button @click="studentDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -294,7 +306,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/store/user';
 import {
-  getTeacherCourses, createCourse, updateCourse, deleteCourse, archiveCourse, getCourseByNo
+  getTeacherCourses, createCourse, updateCourse, deleteCourse, archiveCourse, getCourseByNo, getCourseAllStudent
 } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
@@ -655,6 +667,31 @@ const submitCourse = async () => {
   } finally {
     submitting.value = false;
   }
+};
+
+// 学生列表弹窗
+const studentDialogVisible = ref(false);
+const studentList = ref([]);
+
+const openStudentDialog = async (course) => {
+  studentDialogVisible.value = true;
+  studentList.value = [];
+  const realCourseId = course.id;
+  try {
+    const res = await getCourseAllStudent(realCourseId);
+    if (res.code === 200) {
+      studentList.value = res.data || [];
+    } else {
+      ElMessage.error(res.message || '获取选课学生失败');
+    }
+  } catch (err) {
+    ElMessage.error('获取选课学生失败');
+    studentList.value = [];
+  }
+};
+
+const formatStatus = (row) => {
+  return row.status === 1 ? "正常选课" : "已退选";
 };
 
 onMounted(loadCourses);
