@@ -1,57 +1,82 @@
 <template>
-  <div class="course-select-page">
+  <div class="student-course-page">
     <div class="page-header">
-      <h2 class="page-title">🎓 我的课程</h2>
-      <div class="search-bar">
+      <span class="page-label">全部课程</span>
+      <div class="header-actions">
         <el-input
             v-model="searchKeyword"
             placeholder="搜索课程名称或编号..."
             prefix-icon="Search"
             clearable
             @keyup.enter="loadCourses"
-            style="width: 300px;"
+            style="width: 280px;"
+            size="default"
         />
-        <el-button type="primary" :loading="loading" @click="loadCourses" style="margin-left: 10px;">刷新列表</el-button>
+        <el-button type="primary" :loading="loading" @click="loadCourses">
+          <el-icon><Refresh /></el-icon> 刷新
+        </el-button>
       </div>
     </div>
 
-    <!-- 置顶课程 - 保持原样 -->
+    <!-- 置顶课程 -->
     <div v-if="pinnedCourses.length > 0" class="section-block">
       <div class="section-title">
         <span class="title-dot warning"></span>
         <h3>📌 置顶课程 ({{ pinnedCourses.length }})</h3>
       </div>
       <div class="course-grid">
-        <div class="course-card selected-card pinned-card" v-for="sc in pinnedCourses" :key="'pin-' + (sc.id || sc.courseId)">
-          <div class="card-tag tag-pinned">置顶</div>
-          <div class="card-content" @click="goToCourseDetail(sc)">
-            <h4 class="course-name">{{ sc.courseName || sc.name }}</h4>
-            <p class="course-no">编号：{{ sc.courseNo }}</p>
-            <div class="info-row">
-              <el-icon><User /></el-icon> <span>{{ sc.teacherName || '未知教师' }}</span>
+        <div class="course-card pinned-card" v-for="sc in pinnedCourses" :key="'pin-' + (sc.id || sc.courseId)" @click="goToCourseDetail(sc)">
+          <div class="course-cover">
+            <div class="cover-bg" :style="{ background: getCoverColor(sc.id || sc.courseId) }"></div>
+            <div class="cover-content">
+              <div class="course-title">{{ sc.courseName || sc.name }}</div>
+              <div class="course-subtitle">{{ sc.teacherName || '未知教师' }}</div>
             </div>
-            <div class="info-row">
-              <el-icon><CreditCard /></el-icon> <span>{{ sc.credit || 0 }} 学分</span>
+            <div class="pinned-badge">置顶</div>
+            <el-dropdown
+              class="more-dropdown"
+              trigger="click"
+              @command="handleCommand"
+              @click.stop
+            >
+              <div class="more-btn" @click.stop>
+                <el-icon><MoreFilled /></el-icon>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item :command="{ action: 'unpin', course: sc }">取消置顶</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'drop', course: sc }">退选</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          <div class="course-body">
+            <div class="course-code-row">
+              <el-icon><Grid /></el-icon>
+              <span>课程号：</span>
+              <span class="course-code">{{ sc.courseNo }}</span>
+            </div>
+            <div class="info-section">
+              <div class="info-item">
+                <el-icon><CreditCard /></el-icon>
+                <span>{{ sc.credit || 0 }} 学分</span>
+              </div>
             </div>
           </div>
-          <div class="card-action">
-            <el-button type="primary" size="small" @click="goToCourseDetail(sc)">
-              <el-icon><ArrowRight /></el-icon> 进入课程
-            </el-button>
-            <div class="card-action-bottom">
-              <el-button size="small" text type="warning" @click.stop="togglePin(sc)">
-                取消置顶
-              </el-button>
-              <el-button size="small" text type="danger" @click.stop="handleDrop(sc)">
-                退选
-              </el-button>
+          <div class="course-footer">
+            <div class="member-info">
+              <el-icon><User /></el-icon>
+              <span>{{ sc.teacherName || '未知教师' }}</span>
             </div>
+            <el-button type="primary" size="small" @click.stop="goToCourseDetail(sc)">
+              进入课程
+            </el-button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 已选课程（可拖拽部分，已修复） -->
+    <!-- 已选课程（可拖拽部分） -->
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot"></span>
@@ -60,10 +85,6 @@
       <div v-if="unpinnedList.length === 0" class="empty-tip">
         <el-empty description="暂无已选课程，快去下方挑选吧！" />
       </div>
-      <!-- 【关键修复】
-        1. 用 v-model 绑定 ref 变量 unpinnedList，而非 computed
-        2. 添加 itemKey 绑定，用课程ID作为唯一标识
-      -->
       <draggable
         v-else
         v-model="unpinnedList"
@@ -75,92 +96,135 @@
         class="course-grid"
       >
         <template #item="{ element }">
-          <div class="course-card selected-card" :key="element.id || element.courseId">
-            <div class="card-tag tag-selected">已选</div>
-            <div class="card-content" @click="goToCourseDetail(element)">
-              <h4 class="course-name">{{ element.courseName || element.name }}</h4>
-              <p class="course-no">编号：{{ element.courseNo }}</p>
-              <div class="info-row">
-                <el-icon><User /></el-icon> <span>{{ element.teacherName || '未知教师' }}</span>
+          <div class="course-card" :key="element.id || element.courseId" @click="goToCourseDetail(element)">
+            <div class="course-cover">
+              <div class="cover-bg" :style="{ background: getCoverColor(element.id || element.courseId) }"></div>
+              <div class="cover-content">
+                <div class="course-title">{{ element.courseName || element.name }}</div>
+                <div class="course-subtitle">{{ element.teacherName || '未知教师' }}</div>
               </div>
-              <div class="info-row">
-                <el-icon><CreditCard /></el-icon> <span>{{ element.credit || 0 }} 学分</span>
+              <el-dropdown
+                class="more-dropdown"
+                trigger="click"
+                @command="handleCommand"
+                @click.stop
+              >
+                <div class="more-btn" @click.stop>
+                  <el-icon><MoreFilled /></el-icon>
+                </div>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item :command="{ action: 'pin', course: element }">置顶</el-dropdown-item>
+                    <el-dropdown-item :command="{ action: 'drop', course: element }">退选</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+            <div class="course-body">
+              <div class="course-code-row">
+                <el-icon><Grid /></el-icon>
+                <span>课程号：</span>
+                <span class="course-code">{{ element.courseNo }}</span>
+              </div>
+              <div class="info-section">
+                <div class="info-item">
+                  <el-icon><CreditCard /></el-icon>
+                  <span>{{ element.credit || 0 }} 学分</span>
+                </div>
               </div>
             </div>
-            <div class="card-action">
-              <el-button type="primary" size="small" @click="goToCourseDetail(element)">
-                <el-icon><ArrowRight /></el-icon> 进入课程
-              </el-button>
-              <div class="card-action-bottom">
-                <el-button size="small" text type="primary" @click.stop="togglePin(element)">
-                  置顶
-                </el-button>
-                <el-button size="small" text type="danger" @click.stop="handleDrop(element)">
-                  退选
-                </el-button>
+            <div class="course-footer">
+              <div class="member-info">
+                <el-icon><User /></el-icon>
+                <span>{{ element.teacherName || '未知教师' }}</span>
               </div>
+              <el-button type="primary" size="small" @click.stop="goToCourseDetail(element)">
+                进入课程
+              </el-button>
             </div>
           </div>
         </template>
       </draggable>
     </div>
 
-    <!-- 可选课程部分保持原样 -->
+    <!-- 可选课程 -->
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot primary"></span>
         <h3>可选课程</h3>
       </div>
       <div class="course-grid">
-        <div class="course-card" v-for="course in availableCourses" :key="course.id">
-          <div class="card-content">
-            <h4 class="course-name">{{ course.name }}</h4>
-            <p class="course-no">编号：{{ course.courseNo }}</p>
-            <div class="info-row">
-              <el-icon><User /></el-icon> <span>教师：{{ course.teacherName || '未知' }}</span>
+        <div class="course-card available-card" v-for="course in availableCourses" :key="course.id">
+          <div class="course-cover">
+            <div class="cover-bg" :style="{ background: getCoverColor(course.id) }"></div>
+            <div class="cover-content">
+              <div class="course-title">{{ course.name }}</div>
+              <div class="course-subtitle">{{ course.teacherName || '未知教师' }}</div>
             </div>
-            <div class="info-row">
-              <el-icon><Clock /></el-icon> <span>{{ course.schedule || '待定' }}</span>
+          </div>
+          <div class="course-body">
+            <div class="course-code-row">
+              <el-icon><Grid /></el-icon>
+              <span>课程号：</span>
+              <span class="course-code">{{ course.courseNo }}</span>
+            </div>
+            <div class="info-section">
+              <div class="info-item">
+                <el-icon><Clock /></el-icon>
+                <span>{{ course.schedule || '待定' }}</span>
+              </div>
+              <div class="info-item">
+                <el-icon><CreditCard /></el-icon>
+                <span>{{ course.credit || 0 }} 学分</span>
+              </div>
             </div>
             <div class="capacity-info">
-              <span>余量：</span>
+              <span class="capacity-label">选课人数：</span>
               <el-progress
                   v-if="course.capacity > 0"
                   :percentage="(course.enrolledCount / course.capacity) * 100"
                   :format="() => `${course.enrolledCount || 0}/${course.capacity}`"
-                  :stroke-width="8"
+                  :stroke-width="6"
                   :status="course.enrolledCount >= course.capacity ? 'exception' : ''"
               />
               <span v-else>未设置容量</span>
             </div>
           </div>
-          <div class="card-action">
-            <el-button
-                v-if="isSelected(course.id)"
-                disabled
-                type="success"
-                plain
-            >
-              <el-icon><Check /></el-icon> 已选
-            </el-button>
-            <el-button
-                v-else-if="course.enrolledCount >= course.capacity"
-                disabled
-                type="info"
-            >
-              已满
-            </el-button>
-            <el-button
-                v-else
-                type="primary"
-                :loading="loading"
-                @click="handleSelect(course)"
-            >
-              立即选课
-            </el-button>
-            <el-button style="margin-top:8px;" plain size="small" @click="openStudentDialog(course)">
-              查看选课学生
-            </el-button>
+          <div class="course-footer">
+            <div class="member-info">
+              <el-icon><User /></el-icon>
+              <span>{{ course.teacherName || '未知' }}</span>
+            </div>
+            <div class="footer-actions">
+              <el-button size="small" text @click="openStudentDialog(course)">
+                查看学生
+              </el-button>
+              <el-button
+                  v-if="isSelected(course.id)"
+                  disabled
+                  type="success"
+                  size="small"
+              >
+                已选
+              </el-button>
+              <el-button
+                  v-else-if="course.enrolledCount >= course.capacity"
+                  disabled
+                  type="info"
+                  size="small"
+              >
+                已满
+              </el-button>
+              <el-button
+                  v-else
+                  type="primary"
+                  size="small"
+                  :loading="loading"
+                  @click.stop="handleSelect(course)"
+              >
+                立即选课
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -185,7 +249,7 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '@/store/user';
 import { getCourseList, getStudentCourses, selectCourse, dropCourse, getCourseAllStudent } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Search, Clock, User, Collection, Check, UserFilled, CreditCard, ArrowRight } from '@element-plus/icons-vue';
+import { Search, Clock, User, MoreFilled, Grid, CreditCard, Refresh } from '@element-plus/icons-vue';
 import draggable from 'vuedraggable';
 
 const userStore = useUserStore();
@@ -197,6 +261,36 @@ const selectedCourses = ref([]);
 const pinnedCourseIds = ref([]);
 
 const PIN_KEY = 'student_pinned_courses';
+
+const coverColors = [
+  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+  'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+  'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+  'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+  'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+  'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+  'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'
+];
+
+const getCoverColor = (id) => {
+  const idx = typeof id === 'number' ? id % coverColors.length : 0;
+  return coverColors[idx];
+};
+
+const handleCommand = async ({ action, course }) => {
+  switch (action) {
+    case 'pin':
+      togglePin(course);
+      break;
+    case 'unpin':
+      togglePin(course);
+      break;
+    case 'drop':
+      handleDrop(course);
+      break;
+  }
+};
 
 // 【关键修复】用 ref 来存可拖拽列表，而不是 computed
 const unpinnedList = ref([]);
@@ -429,62 +523,267 @@ const formatStatus = (row) => {
 </script>
 
 <style scoped>
-/* 原有样式保持不变，只添加拖拽状态样式 */
-.course-select-page { padding: 20px 40px; background-color: #f5f7fa; min-height: 100vh; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-.page-title { font-size: 24px; color: #303133; font-weight: 600; }
-.section-block { margin-bottom: 40px; }
-.section-title { display: flex; align-items: center; margin-bottom: 20px; }
-.title-dot { width: 4px; height: 18px; background-color: #909399; border-radius: 2px; margin-right: 10px; }
-.title-dot.primary { background: linear-gradient(135deg, #4f46e5, #818cf8); }
-.section-title h3 { margin: 0; font-size: 18px; color: #303133; }
-.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-.course-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; position: relative; border: 1px solid transparent; display: flex; flex-direction: column; justify-content: space-between; }
-.course-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(79, 70, 229, 0.15); }
-.selected-card { border-color: #e0eaff; background: linear-gradient(to bottom right, #ffffff, #f9fbff); }
-.tag-selected { position: absolute; top: -10px; right: 20px; background: #4f46e5; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.4); }
-.course-name { margin: 0 0 10px 0; font-size: 18px; color: #303133; line-height: 1.4; }
-.course-no { color: #909399; font-size: 13px; margin-bottom: 15px; }
-.info-row { display: flex; align-items: center; color: #606266; font-size: 14px; margin-bottom: 8px; }
-.info-row .el-icon { margin-right: 6px; color: #4f46e5; }
-.capacity-info { margin-top: 15px; font-size: 12px; color: #606266; }
-.capacity-info span { margin-right: 5px; }
-.card-action { margin-top: 20px; border-top: 1px solid #ebeef5; padding-top: 15px; text-align: right; }
-.card-action .el-button { width: 100%; border-radius: 6px; }
-.empty-tip { background: #fff; padding: 40px; border-radius: 12px; text-align: center; }
-.card-content { cursor: pointer; }
-.card-content:hover { background-color: rgba(79, 70, 229, 0.03); border-radius: 8px; }
-
-.title-dot.warning { background: linear-gradient(135deg, #ff9800, #ffb74d); }
-
-.tag-pinned { position: absolute; top: -10px; right: 20px; background: linear-gradient(135deg, #ff9800, #ffb74d); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(255, 152, 0, 0.4); }
-
-.pinned-card { border-color: #fff0e0; background: linear-gradient(to bottom right, #ffffff, #fffaf0); }
-
-.card-action-bottom {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed #ebeef5;
+.student-course-page {
+  padding: 20px 40px;
+  background-color: #fff;
+  min-height: calc(100vh - 50px);
 }
 
-.card-action-bottom .el-button {
-  width: auto;
-  padding: 4px 8px;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.page-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-block {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title-dot {
+  width: 4px;
+  height: 18px;
+  background-color: #909399;
+  border-radius: 2px;
+  margin-right: 10px;
+}
+
+.title-dot.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.title-dot.warning {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.section-title h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #303133;
+  font-weight: 500;
+}
+
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.course-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: all 0.3s;
+  cursor: pointer;
+  position: relative;
+}
+
+.course-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.pinned-card {
+  border-color: #fa709a;
+}
+
+.available-card {
+  cursor: default;
+}
+
+.course-cover {
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+}
+
+.cover-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cover-bg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 60%;
+  height: 100%;
+  background: radial-gradient(circle at 70% 30%, rgba(255,255,255,0.3) 0%, transparent 60%);
+}
+
+.cover-content {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  color: #fff;
+}
+
+.course-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-subtitle {
+  font-size: 12px;
+  opacity: 0.9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinned-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #e6a23c;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 2;
+}
+
+.more-dropdown {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+.more-btn {
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.more-btn:hover {
+  background: #fff;
+  color: #409eff;
+}
+
+.course-body {
+  padding: 12px 16px;
+}
+
+.course-code-row {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 12px;
+  gap: 4px;
+}
+
+.course-code {
+  color: #606266;
+  font-weight: 500;
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #909399;
+  gap: 4px;
+}
+
+.capacity-info {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.capacity-label {
+  margin-right: 4px;
+}
+
+.course-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid #f2f6fc;
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #909399;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50%;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-tip {
+  background: #fff;
+  padding: 40px;
+  border-radius: 6px;
+  text-align: center;
+  border: 1px solid #ebeef5;
 }
 
 /* 拖拽状态样式 */
 .drag-ghost {
   opacity: 0.4;
-  background: #e0eaff;
-  border: 2px dashed #4f46e5;
+  background: #ecf5ff;
 }
 .drag-chosen {
-  box-shadow: 0 10px 30px rgba(79, 70, 229, 0.3);
+  background: #f5f7fa;
 }
 .drag-active {
   transform: scale(1.02);
-  box-shadow: 0 12px 35px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.2);
 }
 </style>
