@@ -12,4 +12,19 @@ public interface HomeworkNoticeService extends IService<HomeworkNotice> {
      * @param type 类型 publish/remind
      */
     void batchCreateNotice(Long homeworkId, List<Long> studentIds, String type);
+
+    /**
+     * 根据学生ID获取通知列表
+     */
+    List<HomeworkNotice> getByStudentId(Long studentId);
+
+    /**
+     * 标记通知已读
+     */
+    void markAsRead(List<Long> noticeIds);
+
+    /**
+     * 获取未读通知数量
+     */
+    int getUnreadCount(Long studentId);
 }

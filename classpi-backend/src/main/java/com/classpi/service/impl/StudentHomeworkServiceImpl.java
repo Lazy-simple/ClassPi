@@ -5,17 +5,79 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.classpi.common.Result;
 import com.classpi.dto.homework.HomeworkCorrectDTO;
 import com.classpi.dto.homework.HomeworkSubmitDTO;
+import com.classpi.entity.Homework;
+import com.classpi.entity.StudentCourse;
 import com.classpi.entity.StudentHomework;
+import com.classpi.entity.User;
+import com.classpi.mapper.HomeworkMapper;
 import com.classpi.mapper.StudentHomeworkMapper;
-import com.classpi.service.HomeworkService;
+import com.classpi.service.CourseService;
 import com.classpi.service.StudentHomeworkService;
+import com.classpi.service.UserService;
 import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class StudentHomeworkServiceImpl extends ServiceImpl<StudentHomeworkMapper, StudentHomework> implements StudentHomeworkService {
+
+    @Resource
+    private CourseService courseService;
+
+    @Resource
+    private UserService userService;
+
+    @Resource
+    private HomeworkMapper homeworkMapper;
+
+    @Override
+    public Result getUnsubmittedStudents(Long homeworkId) {
+        // 1. 获取该作业
+        Homework homework = homeworkMapper.selectById(homeworkId);
+        if (homework == null) {
+            return Result.error("作业不存在");
+        }
+
+        // 2. 获取选了这门课的学生（用 CourseService）
+        Result<List<StudentCourse>> courseResult = courseService.getCourseAllStudent(homework.getCourseId().intValue());
+        if (courseResult.getCode() != 200) {
+            return Result.error("获取选课学生失败");
+        }
+        List<StudentCourse> enrolledStudents = courseResult.getData();
+
+        // 如果返回的是 List<StudentCourse>，取 studentId
+        List<Long> enrolledStudentIds = enrolledStudents.stream()
+                .map(sc -> Long.valueOf(sc.getStudentId()))
+                .collect(Collectors.toList());
+
+        if (enrolledStudentIds.isEmpty()) {
+            return Result.success("该课程暂无学生选课", Collections.emptyList());
+        }
+
+        // 3. 获取已提交的学生
+        LambdaQueryWrapper<StudentHomework> shWrapper = new LambdaQueryWrapper<>();
+        shWrapper.eq(StudentHomework::getHomeworkId, homeworkId);
+        List<StudentHomework> submittedList = this.list(shWrapper);
+        List<Long> submittedIds = submittedList.stream()
+                .map(sh -> Long.valueOf(sh.getStudentId()))
+                .collect(Collectors.toList());
+
+        // 4. 过滤出未提交的学生
+        List<Long> unsubmittedIds = enrolledStudentIds.stream()
+                .filter(id -> !submittedIds.contains(id))
+                .collect(Collectors.toList());
+
+        if (unsubmittedIds.isEmpty()) {
+            return Result.success("所有学生已提交", Collections.emptyList());
+        }
+
+        // 5. 查询学生信息
+        List<User> unsubmittedStudents = userService.listByIds(unsubmittedIds);
+        return Result.success("查询成功", unsubmittedStudents);
+    }
 
     @Override
     public Result submit(HomeworkSubmitDTO dto, Long studentId) {

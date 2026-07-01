@@ -25,4 +25,9 @@ public interface HomeworkService extends IService<Homework> {
      * 获取教师的所有作业
      */
     Result getTeacherHomework(Long teacherId);  // ✅ 添加这行
+
+    /**
+     * 催交单个学生
+     */
+    Result remindSingle(Long homeworkId, Long studentId);
 }

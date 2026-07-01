@@ -13,6 +13,7 @@ public class HomeworkNotice {
     private Long studentId;
     private String noticeType;
     private Integer isRead;
+    private String content;
     @TableLogic
     private Integer deleted;
 

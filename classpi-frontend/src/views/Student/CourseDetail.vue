@@ -6,6 +6,13 @@
           <el-icon><ArrowLeft /></el-icon>
           <span>返回我的课程</span>
         </div>
+        <div class="header-right">
+          <el-badge :value="unreadNoticeCount" :hidden="unreadNoticeCount === 0" type="danger">
+            <el-button size="small" circle @click="openNoticeDrawer">
+              <el-icon><Bell /></el-icon>
+            </el-button>
+          </el-badge>
+        </div>
         <h1 class="course-title">{{ courseInfo.courseName || courseInfo.name || '课程名称' }}</h1>
         <p class="sub-info">
           课程号：{{ courseInfo.courseNo || '课程编号' }} | 教师：{{ courseInfo.teacherName || '未知教师' }} | 学分：{{ courseInfo.credit || 0 }}
@@ -52,27 +59,17 @@
             </div>
             <p class="hw-desc">{{ hw.description || '暂无描述' }}</p>
             <div class="hw-footer">
-  <span class="hw-deadline">
-    <el-icon><Clock /></el-icon>
-    截止时间: {{ hw.deadline || '--' }}
-  </span>
-
-              <!-- ✅ 用 v-if/v-else-if 而不是多个 v-else -->
+              <span class="hw-deadline">
+                <el-icon><Clock /></el-icon>
+                截止时间: {{ hw.deadline || '--' }}
+              </span>
               <template v-if="getHomeworkStatus(hw).text === '未提交'">
-                <el-button
-                    type="primary"
-                    size="small"
-                    @click="goToSubmit(hw.id)"
-                >
+                <el-button type="primary" size="small" @click="goToSubmit(hw.id)">
                   <el-icon><UploadFilled /></el-icon> 提交作业
                 </el-button>
               </template>
               <template v-else>
-                <el-button
-                    type="warning"
-                    size="small"
-                    @click="goToSubmit(hw.id)"
-                >
+                <el-button type="warning" size="small" @click="goToSubmit(hw.id)">
                   <el-icon><RefreshRight /></el-icon> 重新提交
                 </el-button>
               </template>
@@ -105,20 +102,10 @@
             </div>
             <div class="resource-actions">
               <span v-if="item.fileSize" class="file-size">{{ formatFileSize(item.fileSize) }}</span>
-              <el-button
-                  v-if="item.isFolder !== 1 && item.type !== 'link'"
-                  type="primary"
-                  size="small"
-                  @click="downloadResource(item)"
-              >
+              <el-button v-if="item.isFolder !== 1 && item.type !== 'link'" type="primary" size="small" @click="downloadResource(item)">
                 <el-icon><Document /></el-icon> 下载
               </el-button>
-              <el-button
-                  v-if="item.type === 'link'"
-                  type="success"
-                  size="small"
-                  @click="openLink(item)"
-              >
+              <el-button v-if="item.type === 'link'" type="success" size="small" @click="openLink(item)">
                 <el-icon><Link /></el-icon> 访问
               </el-button>
             </div>
@@ -151,34 +138,21 @@
 
           <div class="comment-section">
             <div class="comment-input-area">
-              <el-input
-                v-model="newComment"
-                type="textarea"
-                :rows="3"
-                placeholder="发表你的评论..."
-                maxlength="500"
-                show-word-limit
-              />
+              <el-input v-model="newComment" type="textarea" :rows="3" placeholder="发表你的评论..." maxlength="500" show-word-limit />
               <div class="comment-actions">
                 <el-checkbox v-model="commentAnonymous">匿名评论</el-checkbox>
-                <el-button type="primary" size="small" :loading="commentSubmitting" @click="submitComment">
-                  发表评论
-                </el-button>
+                <el-button type="primary" size="small" :loading="commentSubmitting" @click="submitComment">发表评论</el-button>
               </div>
             </div>
 
             <div class="comment-list">
-              <div v-if="commentLoading" class="loading-state">
-                <span>加载评论中...</span>
-              </div>
+              <div v-if="commentLoading" class="loading-state"><span>加载评论中...</span></div>
               <div v-else-if="commentList.length === 0" class="empty-state">
                 <el-empty description="暂无评论，快来发表第一条评论吧" />
               </div>
               <div v-else class="comment-item" v-for="comment in commentList" :key="comment.id">
                 <div class="comment-avatar">
-                  <el-avatar :size="40">
-                    {{ (comment.authorName || '匿').charAt(0) }}
-                  </el-avatar>
+                  <el-avatar :size="40">{{ (comment.authorName || '匿').charAt(0) }}</el-avatar>
                 </div>
                 <div class="comment-body">
                   <div class="comment-header">
@@ -193,9 +167,7 @@
         </div>
 
         <div v-else>
-          <div v-if="loading" class="loading-state">
-            <span>加载中...</span>
-          </div>
+          <div v-if="loading" class="loading-state"><span>加载中...</span></div>
           <div v-else-if="topicList.length === 0" class="empty-state">
             <el-empty description="暂无讨论" />
           </div>
@@ -204,38 +176,22 @@
               <div class="topic-card-header" style="display:flex; justify-content:space-between; align-items:center;">
                 <h4 class="topic-card-title" @click="openTopic(topic)" style="cursor:pointer; flex:1;">
                   {{ topic.title }}
-                  <!-- ✅ 添加标签 -->
                   <el-tag v-if="topic.isTop == 1" type="danger" size="small" style="margin-left:8px;">置顶</el-tag>
                   <el-tag v-if="topic.allowComment == 0" type="warning" size="small" style="margin-left:8px;">🔇 已禁言</el-tag>
                 </h4>
-                <!-- 操作按钮 -->
                 <div class="topic-actions">
-                  <el-button
-                      v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
-                      size="small"
-                      type="primary"
-                      text
-                      @click.stop="openEditTopic(topic)"
-                  >编辑</el-button>
-                  <el-button
-                      v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'"
-                      size="small"
-                      type="danger"
-                      text
-                      @click.stop="handleDeleteTopic(topic)"
-                  >删除</el-button>
+                  <el-button v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'" size="small" type="primary" text @click.stop="openEditTopic(topic)">编辑</el-button>
+                  <el-button v-if="String(userStore.userInfo?.id) === String(topic.authorId) || userStore.userInfo?.identity === 'teacher'" size="small" type="danger" text @click.stop="handleDeleteTopic(topic)">删除</el-button>
                 </div>
               </div>
               <p class="topic-card-content" @click="openTopic(topic)" style="cursor:pointer;">{{ topic.content || '暂无内容' }}</p>
               <div class="topic-card-footer">
-                    <span class="topic-card-author">
-                      <el-icon><User /></el-icon>
-                      {{ topic.authorName || '匿名' }}
-                    </span>
+                <span class="topic-card-author">
+                  <el-icon><User /></el-icon> {{ topic.authorName || '匿名' }}
+                </span>
                 <span class="topic-card-time">{{ topic.createTime || '--' }}</span>
                 <span class="topic-card-reply">
-                  <el-icon><ChatDotRound /></el-icon>
-                  {{ topic.replyCount || topic.replyNum || 0 }} 回复
+                  <el-icon><ChatDotRound /></el-icon> {{ topic.replyCount || topic.replyNum || 0 }} 回复
                 </span>
               </div>
             </div>
@@ -261,6 +217,26 @@
         <el-button type="primary" :loading="topicSubmitting" @click="submitTopic">发布</el-button>
       </template>
     </el-dialog>
+
+    <!-- 通知抽屉 - 移到 div 内部 -->
+    <el-drawer v-model="noticeDrawerVisible" title="📢 作业通知" direction="rtl" size="400px">
+      <div class="notice-list">
+        <div v-if="noticeLoading" class="loading-state">加载中...</div>
+        <div v-else-if="noticeList.length === 0" class="empty-state">
+          <el-empty description="暂无通知" />
+        </div>
+        <div v-else class="notice-item" v-for="notice in noticeList" :key="notice.id" :class="{ 'unread': notice.isRead === 0 }">
+          <div class="notice-type">
+            <el-tag :type="notice.noticeType === 'publish' ? 'primary' : 'warning'" size="small">
+              {{ notice.noticeType === 'publish' ? '📢 发布' : '⏰ 催交' }}
+            </el-tag>
+          </div>
+          <div class="notice-content">{{ notice.content }}</div>
+          <div class="notice-time">{{ formatTime(notice.createTime) }}</div>
+        </div>
+      </div>
+    </el-drawer>
+
   </div>
 </template>
 
@@ -277,6 +253,14 @@ import { getHomeworkByCourse,getStudentHomeworkStatus } from '@/api/homework'
 import { getResourceTree, downloadResource as downloadRes } from '@/api/resource'
 import { getTopicList, publishTopic, getCommentList, addComment,deleteTopic,editTopic } from '@/api/topic'
 import { useUserStore } from '@/store/user'
+import { Bell } from '@element-plus/icons-vue'
+import { getHomeworkNotices, markNoticeRead } from '@/api/notice'
+import { onUnmounted } from 'vue'
+
+const noticeDrawerVisible = ref(false)
+const noticeList = ref([])
+const noticeLoading = ref(false)
+const unreadNoticeCount = ref(0)
 
 const route = useRoute()
 const router = useRouter()
@@ -621,9 +605,63 @@ const submitComment = async () => {
   }
 }
 
+// 在 loadNotices 函数前面加上
+const formatTime = (time) => {
+  if (!time) return '--'
+  return new Date(time).toLocaleString('zh-CN')
+}
+
+// 在 openNoticeDrawer 函数前面加上这个
+const loadNotices = async () => {
+  try {
+    const res = await getHomeworkNotices()
+    if (res.code === 200) {
+      noticeList.value = res.data || []
+      unreadNoticeCount.value = noticeList.value.filter(n => n.isRead === 0).length
+    }
+  } catch (error) {
+    console.error('加载通知失败:', error)
+  }
+}
+
+// 打开通知抽屉
+const openNoticeDrawer = async () => {
+  noticeDrawerVisible.value = true
+  noticeLoading.value = true
+  try {
+    await loadNotices()
+    const unreadIds = noticeList.value.filter(n => n.isRead === 0).map(n => n.id)
+    if (unreadIds.length > 0) {
+      await markNoticeRead(unreadIds)
+      unreadNoticeCount.value = 0
+      noticeList.value.forEach(n => n.isRead = 1)
+    }
+  } finally {
+    noticeLoading.value = false
+  }
+}
+
+// 定时轮询通知（可选）
+let noticeTimer = null
+
+// ✅ 把 onMounted 放在所有函数定义之后
 onMounted(() => {
   loadCourseInfo()
   loadHomework()
+  loadNotices()
+  // 每30秒检查一次新通知
+  noticeTimer = setInterval(() => {
+    loadNotices()
+  }, 30000)
+})
+
+// ✅ 组件卸载时清理定时器
+ // 在顶部 import 里加上
+onUnmounted(() => {
+  if (noticeTimer) {
+    clearInterval(noticeTimer)
+    noticeTimer = null
+  }
 })
 </script>
 

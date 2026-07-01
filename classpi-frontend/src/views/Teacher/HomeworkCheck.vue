@@ -30,52 +30,80 @@
         </div>
       </template>
 
-      <el-table :data="filteredTableData" border stripe style="width: 100%" v-loading="listLoading">
-        <el-table-column prop="studentName" label="学生姓名" width="120" />
-        <el-table-column prop="fileName" label="作业附件" width="180">
-          <template #default="scope">
-            <template v-if="scope.row.fileUrl && scope.row.fileUrl !== ''">
-              <el-link type="primary" :underline="false" @click="downloadFile(scope.row.fileUrl)">
-                {{ scope.row.fileName || '下载附件' }}
-              </el-link>
-            </template>
-            <template v-else>
-              <el-tag size="small" type="info">无附件</el-tag>
-            </template>
-          </template>
-        </el-table-column>
-        <el-table-column prop="submitTime" label="提交时间" width="170" />
-        <el-table-column label="批阅状态" width="100">
-          <template #default="scope">
-            <el-tag :type="scope.row.corrected === 1 ? 'success' : 'warning'" size="small">
-              {{ scope.row.corrected === 1 ? '已批阅' : '待批阅' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
-          <template #default="scope">
-            <el-button size="small" plain @click="viewDetail(scope.row)">查看详情</el-button>
-            <el-button
-                size="small"
-                type="primary"
-                plain
-                :loading="scope.row.aiLoading"
-                @click="aiEval(scope.row)"
-            >
-              ✨ AI评价
+      <!-- ✅ 新增 Tab 切换 -->
+      <el-tabs v-model="activeTab" class="submission-tabs">
+        <!-- ===== Tab1: 已提交学生 ===== -->
+        <el-tab-pane label="📋 已提交" name="submitted">
+          <el-table :data="filteredTableData" border stripe style="width: 100%" v-loading="listLoading">
+            <el-table-column prop="studentName" label="学生姓名" width="120" />
+            <el-table-column prop="fileName" label="作业附件" width="180">
+              <template #default="scope">
+                <template v-if="scope.row.fileUrl && scope.row.fileUrl !== ''">
+                  <el-link type="primary" :underline="false" @click="downloadFile(scope.row.fileUrl)">
+                    {{ scope.row.fileName || '下载附件' }}
+                  </el-link>
+                </template>
+                <template v-else>
+                  <el-tag size="small" type="info">无附件</el-tag>
+                </template>
+              </template>
+            </el-table-column>
+            <el-table-column prop="submitTime" label="提交时间" width="170" />
+            <el-table-column label="批阅状态" width="100">
+              <template #default="scope">
+                <el-tag :type="scope.row.corrected === 1 ? 'success' : 'warning'" size="small">
+                  {{ scope.row.corrected === 1 ? '已批阅' : '待批阅' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="420" fixed="right">
+              <template #default="scope">
+                <el-button size="small" plain @click="viewDetail(scope.row)">查看详情</el-button>
+                <el-button size="small" type="primary" plain :loading="scope.row.aiLoading" @click="aiEval(scope.row)">
+                  ✨ AI评价
+                </el-button>
+                <el-button v-if="scope.row.corrected !== 1" size="small" type="success" plain @click="openCorrectDialog(scope.row)">
+                  📝 批阅
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
+        <!-- ===== Tab2: 未提交学生 ===== -->
+        <el-tab-pane label="⚠️ 未提交" name="unsubmitted">
+          <div class="unsubmitted-toolbar">
+            <el-button type="warning" size="small" @click="remindAll" :loading="remindAllLoading">
+              🔔 一键催交全部
             </el-button>
-            <el-button
-                v-if="scope.row.corrected !== 1"
-                size="small"
-                type="success"
-                plain
-                @click="openCorrectDialog(scope.row)"
-            >
-              📝 批阅
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            <span style="color:#909399; font-size:13px; margin-left:10px;">
+              共 {{ unsubmittedList.length }} 名学生未提交
+            </span>
+          </div>
+          <el-table :data="filteredUnsubmittedList" border stripe style="width: 100%" v-loading="unsubmittedLoading">
+            <el-table-column prop="username" label="学生姓名" width="150" />
+            <el-table-column prop="studentId" label="学号" width="150" />
+            <el-table-column label="状态" width="100">
+              <template #default>
+                <el-tag type="warning" size="small">未提交</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="150">
+              <template #default="scope">
+                <el-button
+                    size="small"
+                    type="warning"
+                    plain
+                    :loading="scope.row.reminding"
+                    @click="handleRemindSingle(scope.row)"
+                >
+                  🔔 催交
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
     </el-card>
 
     <!-- 批阅弹窗 -->
@@ -146,9 +174,10 @@ import { useUserStore } from '@/store/user'
 import { ref, computed, onMounted } from 'vue'
 import { aiEvaluate } from '@/api/ai'
 import AiComment from '@/components/AiComment.vue'
-import { ElMessage } from 'element-plus'
-import { getHomeworkSubmissions, checkHomework, getTeacherHomeworkList } from '@/api/homework'
+import { getHomeworkSubmissions, checkHomework, getTeacherHomeworkList, getUnsubmittedStudents } from '@/api/homework'
 import { useRoute } from 'vue-router'
+import { remindHomework,remindAllHomework } from '@/api/homework'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const props = defineProps({
   courseId: {
@@ -173,6 +202,10 @@ const currentAiRow = ref(null)
 // ========== 新增：作业列表 ==========
 const homeworkList = ref([])
 const selectedHomeworkId = ref(null)
+const activeTab = ref('submitted')
+const unsubmittedList = ref([])
+const unsubmittedLoading = ref(false)
+const remindAllLoading = ref(false)
 
 // 批阅表单
 const correctForm = ref({
@@ -202,6 +235,7 @@ const loadHomeworkList = async () => {
       if (homeworkList.value.length > 0) {
         selectedHomeworkId.value = homeworkList.value[0].id
         await loadSubmissions()
+        await loadUnsubmitted()
       } else {
         ElMessage.info('暂无已发布的作业')
       }
@@ -220,7 +254,14 @@ const filteredTableData = computed(() => {
   )
 })
 
-// 加载提交记录
+const filteredUnsubmittedList = computed(() => {
+  if (!searchKeyword.value) return unsubmittedList.value
+  return unsubmittedList.value.filter(item =>
+      item.username?.includes(searchKeyword.value) ||
+      item.studentId?.includes(searchKeyword.value)
+  )
+})
+
 // 加载提交记录
 const loadSubmissions = async () => {
   // ✅ 用选中的作业ID，而不是 route.query
@@ -257,6 +298,74 @@ const loadSubmissions = async () => {
     ElMessage.error('网络异常，请稍后重试')
   } finally {
     listLoading.value = false
+  }
+}
+
+// ========== 加载未提交学生列表 ==========
+const loadUnsubmitted = async () => {
+  if (!selectedHomeworkId.value) return
+  unsubmittedLoading.value = true
+  try {
+    const res = await getUnsubmittedStudents(selectedHomeworkId.value)
+    if (res.code === 200) {
+      unsubmittedList.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载未提交列表失败:', error)
+  } finally {
+    unsubmittedLoading.value = false
+  }
+}
+
+// ========== 催交单个学生 ==========
+const handleRemindSingle = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+        `确定要向「${row.username}」发送催交通知吗？`,
+        '催交确认',
+        { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    row.reminding = true
+    const res = await remindHomework(selectedHomeworkId.value, row.id)
+    if (res.code === 200) {
+      ElMessage.success(`已向 ${row.username} 发送催交通知`)
+    } else {
+      ElMessage.error(res.msg || '催交失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('催交失败:', error)
+    }
+  } finally {
+    row.reminding = false
+  }
+}
+
+// ========== 一键催交全部 ==========
+const remindAll = async () => {
+  if (unsubmittedList.value.length === 0) {
+    ElMessage.info('所有学生已提交，无需催交')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+        `确定要向全部 ${unsubmittedList.value.length} 名未提交学生发送催交通知吗？`,
+        '批量催交确认',
+        { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    remindAllLoading.value = true
+    const res = await remindAllHomework(selectedHomeworkId.value)
+    if (res.code === 200) {
+      ElMessage.success(`已向 ${unsubmittedList.value.length} 名学生发送催交通知`)
+    } else {
+      ElMessage.error(res.msg || '催交失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量催交失败:', error)
+    }
+  } finally {
+    remindAllLoading.value = false
   }
 }
 
@@ -379,6 +488,31 @@ const applyAiComment = () => {
   }
 }
 
+const handleRemind = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+        `确定要向「${row.studentName}」发送催交通知吗？`,
+        '催交确认',
+        { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+
+    row.reminding = true
+    const res = await remindHomework(selectedHomeworkId.value, row.studentId)
+    if (res.code === 200) {
+      ElMessage.success(`已向 ${row.studentName} 发送催交通知`)
+    } else {
+      ElMessage.error(res.msg || '催交失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('催交失败:', error)
+      ElMessage.error('催交失败，请重试')
+    }
+  } finally {
+    row.reminding = false
+  }
+}
+
 onMounted(() => {
   loadHomeworkList()
 })
@@ -389,4 +523,14 @@ onMounted(() => {
 .card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .ai-result-box { background: #f9fafb; padding: 20px; border-radius: 8px; min-height: 100px; white-space: pre-wrap; }
 .content-box { background: #f5f7fa; padding: 12px; border-radius: 8px; min-height: 50px; white-space: pre-wrap; word-break: break-all; }
+
+/* ✅ 新增 */
+.submission-tabs {
+  margin-top: 10px;
+}
+.unsubmitted-toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+}
 </style>

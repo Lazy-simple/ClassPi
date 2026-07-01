@@ -8,6 +8,8 @@ import com.classpi.service.StudentHomeworkService;
 import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Map;
+
 import com.classpi.entity.StudentHomework;
 
 @RestController
@@ -39,6 +41,14 @@ public class HomeworkController {
         return homeworkService.remind(hwId);
     }
 
+    // ✅ 新增：针对单个学生的催交
+    @PostMapping("/remind/single/{hwId}")
+    public Result remindSingle(
+            @PathVariable Long hwId,
+            @RequestBody Map<String, Long> params) {
+        Long studentId = params.get("studentId");
+        return homeworkService.remindSingle(hwId, studentId);
+    }
     /**
      * 查询该作业所有学生提交记录（批阅列表）
      * GET /api/homework/submit/list/{hwId}
@@ -64,5 +74,14 @@ public class HomeworkController {
     @GetMapping("/teacher/{teacherId}")
     public Result getTeacherHomework(@PathVariable Long teacherId) {
         return homeworkService.getTeacherHomework(teacherId);
+    }
+
+    /**
+     * 获取某作业未提交的学生列表
+     * GET /api/homework/unsubmitted/{hwId}
+     */
+    @GetMapping("/unsubmitted/{hwId}")
+    public Result getUnsubmittedStudents(@PathVariable Long hwId) {
+        return studentHomeworkService.getUnsubmittedStudents(hwId);
     }
 }

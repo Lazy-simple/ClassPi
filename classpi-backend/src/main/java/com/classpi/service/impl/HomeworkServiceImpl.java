@@ -4,22 +4,21 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.classpi.common.Result;
 import com.classpi.dto.homework.HomeworkPublishDTO;
-import com.classpi.entity.Homework;
-import com.classpi.entity.StudentHomework;
-import com.classpi.entity.User;
+import com.classpi.entity.*;
 import com.classpi.mapper.HomeworkMapper;
-import com.classpi.service.HomeworkNoticeService;
-import com.classpi.service.HomeworkService;
-import com.classpi.service.StudentHomeworkService;
-import com.classpi.service.UserService;
+import com.classpi.service.*;
 import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> implements HomeworkService {
+
+    @Resource
+    private CourseService courseService;
 
     @Resource
     private HomeworkMapper homeworkMapper;
@@ -68,28 +67,42 @@ public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> i
 
     @Override
     public Result remind(Long homeworkId) {
-        // 1.获取全部学生
-        LambdaQueryWrapper<User> stuWrapper = new LambdaQueryWrapper<>();
-        stuWrapper.eq(User::getIdentity, "student");
-        List<User> allStudent = userService.list(stuWrapper);
-        List<Long> allStuIds = allStudent.stream().map(user -> Long.valueOf(user.getId())).collect(Collectors.toList());
+        Homework homework = this.getById(homeworkId);
+        if (homework == null) {
+            return Result.error("作业不存在");
+        }
 
-        // 2.查出已提交的学生
+        // 用 CourseService 获取选课学生
+        Result<List<StudentCourse>> courseResult = courseService.getCourseAllStudent(homework.getCourseId().intValue());
+        if (courseResult.getCode() != 200) {
+            return Result.error("获取选课学生失败");
+        }
+        List<StudentCourse> enrolledStudents = courseResult.getData();
+        List<Long> enrolledIds = enrolledStudents.stream()
+                .map(sc -> Long.valueOf(sc.getStudentId()))
+                .collect(Collectors.toList());
+
+        if (enrolledIds.isEmpty()) {
+            return Result.success("该课程暂无学生选课");
+        }
+
+        // 查出已提交的学生
         LambdaQueryWrapper<StudentHomework> submitWrapper = new LambdaQueryWrapper<>();
         submitWrapper.eq(StudentHomework::getHomeworkId, homeworkId);
         List<StudentHomework> submitList = studentHomeworkService.list(submitWrapper);
-        List<Long> submitStuIds = submitList.stream().map(sh -> Long.valueOf(sh.getStudentId()))
+        List<Long> submitStuIds = submitList.stream()
+                .map(sh -> Long.valueOf(sh.getStudentId()))
                 .collect(Collectors.toList());
-        ;
 
-        // 3.过滤未提交学生
-        List<Long> remindIds = allStuIds.stream()
+        // 过滤未提交学生
+        List<Long> remindIds = enrolledIds.stream()
                 .filter(id -> !submitStuIds.contains(id))
                 .collect(Collectors.toList());
+
         if (remindIds.isEmpty()) {
             return Result.success("所有学生已提交，无需催交");
         }
-        // 4.批量生成催交通知
+
         homeworkNoticeService.batchCreateNotice(homeworkId, remindIds, "remind");
         return Result.success("催交通知已发送");
     }
@@ -125,5 +138,21 @@ public class HomeworkServiceImpl extends ServiceImpl<HomeworkMapper, Homework> i
             e.printStackTrace();
             return Result.error("查询教师作业失败：" + e.getMessage());
         }
+    }
+
+    @Override
+    public Result remindSingle(Long homeworkId, Long studentId) {
+        LambdaQueryWrapper<StudentHomework> submitWrapper = new LambdaQueryWrapper<>();
+        submitWrapper.eq(StudentHomework::getHomeworkId, homeworkId)
+                .eq(StudentHomework::getStudentId, String.valueOf(studentId));
+        long count = studentHomeworkService.count(submitWrapper);
+
+        if (count > 0) {
+            return Result.error("该学生已提交作业，无需催交");
+        }
+
+        List<Long> studentIds = Collections.singletonList(studentId);
+        homeworkNoticeService.batchCreateNotice(homeworkId, studentIds, "remind");
+        return Result.success("催交通知已发送");
     }
 }

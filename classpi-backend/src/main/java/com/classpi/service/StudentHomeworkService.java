@@ -27,4 +27,9 @@ public interface StudentHomeworkService extends IService<StudentHomework> {
      * 查询学生单份作业提交记录
      */
     StudentHomework getByHwAndStu(Long homeworkId, Long studentId);
+
+    /**
+     * 获取某作业未提交的学生列表
+     */
+    Result getUnsubmittedStudents(Long homeworkId);
 }

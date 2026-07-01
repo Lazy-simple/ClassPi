@@ -77,6 +77,7 @@
     </div>
 
     <!-- 已选课程（可拖拽部分） -->
+    <!-- 已选课程（普通列表，暂时禁用拖拽） -->
     <div class="section-block">
       <div class="section-title">
         <span class="title-dot"></span>
@@ -85,66 +86,60 @@
       <div v-if="unpinnedList.length === 0" class="empty-tip">
         <el-empty description="暂无已选课程，快去下方挑选吧！" />
       </div>
-      <draggable
-        v-else
-        v-model="unpinnedList"
-        item-key="id"
-        ghost-class="drag-ghost"
-        chosen-class="drag-chosen"
-        drag-class="drag-active"
-        @change="onSortChange"
-        class="course-grid"
-      >
-        <template #item="{ element }">
-          <div class="course-card" :key="element.id || element.courseId" @click="goToCourseDetail(element)">
-            <div class="course-cover">
-              <div class="cover-bg" :style="{ background: getCoverColor(element.id || element.courseId) }"></div>
-              <div class="cover-content">
-                <div class="course-title">{{ element.courseName || element.name }}</div>
-                <div class="course-subtitle">{{ element.teacherName || '未知教师' }}</div>
-              </div>
-              <el-dropdown
+      <div v-else class="course-grid">
+        <div
+            class="course-card"
+            v-for="element in unpinnedList"
+            :key="element.id || element.courseId"
+            @click="goToCourseDetail(element)"
+        >
+          <div class="course-cover">
+            <div class="cover-bg" :style="{ background: getCoverColor(element.id || element.courseId) }"></div>
+            <div class="cover-content">
+              <div class="course-title">{{ element.courseName || element.name }}</div>
+              <div class="course-subtitle">{{ element.teacherName || '未知教师' }}</div>
+            </div>
+            <el-dropdown
                 class="more-dropdown"
                 trigger="click"
                 @command="handleCommand"
                 @click.stop
-              >
-                <div class="more-btn" @click.stop>
-                  <el-icon><MoreFilled /></el-icon>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item :command="{ action: 'pin', course: element }">置顶</el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'drop', course: element }">退选</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+            >
+              <div class="more-btn" @click.stop>
+                <el-icon><MoreFilled /></el-icon>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item :command="{ action: 'pin', course: element }">置顶</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'drop', course: element }">退选</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          <div class="course-body">
+            <div class="course-code-row">
+              <el-icon><Grid /></el-icon>
+              <span>课程号：</span>
+              <span class="course-code">{{ element.courseNo }}</span>
             </div>
-            <div class="course-body">
-              <div class="course-code-row">
-                <el-icon><Grid /></el-icon>
-                <span>课程号：</span>
-                <span class="course-code">{{ element.courseNo }}</span>
+            <div class="info-section">
+              <div class="info-item">
+                <el-icon><CreditCard /></el-icon>
+                <span>{{ element.credit || 0 }} 学分</span>
               </div>
-              <div class="info-section">
-                <div class="info-item">
-                  <el-icon><CreditCard /></el-icon>
-                  <span>{{ element.credit || 0 }} 学分</span>
-                </div>
-              </div>
-            </div>
-            <div class="course-footer">
-              <div class="member-info">
-                <el-icon><User /></el-icon>
-                <span>{{ element.teacherName || '未知教师' }}</span>
-              </div>
-              <el-button type="primary" size="small" @click.stop="goToCourseDetail(element)">
-                进入课程
-              </el-button>
             </div>
           </div>
-        </template>
-      </draggable>
+          <div class="course-footer">
+            <div class="member-info">
+              <el-icon><User /></el-icon>
+              <span>{{ element.teacherName || '未知教师' }}</span>
+            </div>
+            <el-button type="primary" size="small" @click.stop="goToCourseDetail(element)">
+              进入课程
+            </el-button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 可选课程 -->
@@ -250,7 +245,7 @@ import { useUserStore } from '@/store/user';
 import { getCourseList, getStudentCourses, selectCourse, dropCourse, getCourseAllStudent } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search, Clock, User, MoreFilled, Grid, CreditCard, Refresh } from '@element-plus/icons-vue';
-import draggable from 'vuedraggable';
+//import draggable from 'vuedraggable';
 
 const userStore = useUserStore();
 const router = useRouter();

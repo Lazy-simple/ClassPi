@@ -97,3 +97,29 @@ export function getStudentHomeworkStatus(homeworkId) {
     // ✅ 不需要 params，userId 由 request.js 拦截器自动加到请求头
   })
 }
+
+// 催交作业（单个学生）
+// 催交作业（单个学生）
+export const remindHomework = (homeworkId, studentId) => {
+  return request({
+    url: `/api/homework/remind/single/${homeworkId}`,  // ✅ 加上 /api 和 /single
+    method: 'POST',
+    data: { studentId }
+  })
+}
+
+// 催交全部未提交学生（一键催交）
+export const remindAllHomework = (homeworkId) => {
+  return request({
+    url: `/api/homework/remind/${homeworkId}`,  // ✅ 加上 /api
+    method: 'POST'
+  })
+}
+
+// 获取某作业未提交的学生列表
+export function getUnsubmittedStudents(homeworkId) {
+  return request({
+    url: `/api/homework/unsubmitted/${homeworkId}`,
+    method: 'GET'
+  })
+}
