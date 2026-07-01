@@ -1,29 +1,17 @@
 <template>
   <div class="course-detail-page">
-    <div class="breadcrumb">
-      <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ path: '/main/student-course' }">我的课程</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ courseInfo.courseName || courseInfo.name || '课程详情' }}</el-breadcrumb-item>
-      </el-breadcrumb>
-    </div>
-
-    <div class="course-header">
-      <div class="cover-bg" :style="{ backgroundImage: `url(${defaultCover})` }"></div>
-      <div class="cover-overlay"></div>
-      <div class="course-info">
-        <h1 class="course-title">{{ courseInfo.courseName || courseInfo.name || '课程名称' }}</h1>
-        <p class="course-subtitle">{{ courseInfo.courseNo || '课程编号' }}</p>
-        <div class="course-meta">
-          <span class="meta-item">
-            <el-icon><User /></el-icon>
-            {{ courseInfo.teacherName || '未知教师' }}
-          </span>
-          <span class="meta-item">
-            <el-icon><Collection /></el-icon>
-            {{ courseInfo.credit || 0 }} 学分
-          </span>
+    <div class="course-header-card">
+      <div class="header-content">
+        <div class="back-link" @click="goBack">
+          <el-icon><ArrowLeft /></el-icon>
+          <span>返回我的课程</span>
         </div>
+        <h1 class="course-title">{{ courseInfo.courseName || courseInfo.name || '课程名称' }}</h1>
+        <p class="sub-info">
+          课程号：{{ courseInfo.courseNo || '课程编号' }} | 教师：{{ courseInfo.teacherName || '未知教师' }} | 学分：{{ courseInfo.credit || 0 }}
+        </p>
       </div>
+      <div class="header-bg"></div>
     </div>
 
     <div class="course-tabs">
@@ -314,7 +302,13 @@ const topicForm = ref({
   isAnonymous: false
 })
 
-const defaultCover = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=education%20course%20abstract%20banner%20modern%20design&image_size=landscape_16_9'
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/main/student-course')
+  }
+}
 
 const switchTab = (tab) => {
   activeTab.value = tab
@@ -631,82 +625,64 @@ onMounted(() => {
 
 <style scoped>
 .course-detail-page {
-  min-height: 100vh;
+  padding: 20px 40px;
   background-color: #f5f7fa;
+  min-height: 100vh;
 }
 
-.breadcrumb {
-  padding: 16px 40px;
-  background: white;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.course-header {
+.course-header-card {
   position: relative;
-  height: 220px;
-  overflow: hidden;
-}
-
-.cover-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-size: cover;
-  background-position: center;
-}
-
-.cover-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
-}
-
-.course-info {
-  position: relative;
-  z-index: 1;
-  padding: 30px 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  border-radius: 8px;
+  padding: 30px 30px 20px 30px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(118, 75, 162, 0.2);
+}
+
+.header-content {
+  position: relative;
+  z-index: 2;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.8;
+  margin-bottom: 15px;
+  transition: all 0.3s;
+}
+
+.back-link:hover {
+  opacity: 1;
+  transform: translateX(-5px);
+}
+
+.back-link .el-icon {
+  margin-right: 4px;
 }
 
 .course-title {
-  font-size: 28px;
-  font-weight: bold;
-  margin: 0 0 8px 0;
+  margin: 0 0 10px;
+  font-size: 36px;
+  font-weight: 700;
 }
 
-.course-subtitle {
-  font-size: 14px;
+.sub-info {
+  margin: 0;
   opacity: 0.9;
-  margin: 0 0 16px 0;
-}
-
-.course-meta {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   font-size: 14px;
-  opacity: 0.9;
-}
-
-.meta-item .el-icon {
-  font-size: 16px;
 }
 
 .course-tabs {
-  background: white;
-  border-bottom: 1px solid #e4e7ed;
-  padding: 0 40px;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+  padding: 0 20px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
+  margin-bottom: 0;
 }
 
 .tabs-container {
@@ -747,7 +723,11 @@ onMounted(() => {
 }
 
 .tab-content {
-  padding: 20px 40px;
+  background: #fff;
+  padding: 25px;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
+  min-height: 500px;
 }
 
 .section-header {

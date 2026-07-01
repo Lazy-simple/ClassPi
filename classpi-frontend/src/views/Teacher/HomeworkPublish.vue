@@ -1,17 +1,5 @@
 <template>
   <div class="publish-homework-page">
-    <div class="btn-group">
-      <el-button 
-        type="primary" 
-        :class="{ active: homeworkType === 'personal' }"
-        @click="homeworkType = 'personal'"
-      >发布个人作业</el-button>
-      <el-button 
-        :class="{ active: homeworkType === 'group' }"
-        @click="homeworkType = 'group'"
-      >发布小组作业</el-button>
-    </div>
-
     <el-card shadow="hover" class="form-card">
       <el-form :model="form" label-width="100px">
         <el-form-item label="所属课程" required>
@@ -200,7 +188,6 @@ const userStore = useUserStore();
 const submitting = ref(false);
 const importing = ref(false);
 const courseList = ref([]);
-const homeworkType = ref('personal');
 
 const form = ref({
   courseId: '',
@@ -405,23 +392,6 @@ watch(importTab, handleImportTabChange);
 
 <style scoped>
 .publish-homework-page { padding: 20px; }
-
-.btn-group {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.btn-group .el-button {
-  padding: 8px 30px;
-  font-size: 14px;
-}
-
-.btn-group .el-button.active {
-  background-color: #409eff;
-  border-color: #409eff;
-  color: #fff;
-}
 
 .form-card {
   border-radius: 0;
