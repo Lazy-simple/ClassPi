@@ -16,9 +16,6 @@ public interface CourseService {
     // 删除课程
     Result deleteCourse(Integer id);
     
-    // 获取教师的课程列表
-    Result getTeacherCourses(String teacherId);
-    
     // 获取所有课程（学生选课用）
     Result getAllCourses();
     
@@ -48,4 +45,9 @@ public interface CourseService {
 
     // 获取学生已选课程列表（可包含归档）
     Result getStudentCourses(String studentId, Boolean includeArchived);
+
+    /**
+     * 教师通过加课码加入课程
+     */
+    Result teacherJoinCourse(String teacherId, String teacherName, String courseNo);
 }

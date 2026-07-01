@@ -26,10 +26,10 @@
       </div>
       <div class="course-grid">
         <div
-          class="course-card pinned-card"
-          v-for="course in pinnedCourses"
-          :key="'pin-' + course.id"
-          @click="enterCourse(course)"
+            class="course-card pinned-card"
+            v-for="course in pinnedCourses"
+            :key="'pin-' + course.id"
+            @click="enterCourse(course)"
         >
           <div class="course-cover">
             <div class="cover-bg" :style="{ background: getCoverColor(course.id) }"></div>
@@ -40,10 +40,10 @@
             <div class="pinned-badge">置顶</div>
             <div class="teacher-badge" v-if="isTeacherOfCourse(course)">教</div>
             <el-dropdown
-              class="more-dropdown"
-              trigger="click"
-              @command="handleCommand"
-              @click.stop
+                class="more-dropdown"
+                trigger="click"
+                @command="handleCommand"
+                @click.stop
             >
               <div class="more-btn" @click.stop>
                 <el-icon><MoreFilled /></el-icon>
@@ -100,85 +100,75 @@
         <h3>全部课程 ({{ unpinnedCourses.length + 1 }})</h3>
       </div>
       <div class="course-grid">
-        <!-- 可拖拽的课程卡片 -->
-        <draggable
-          v-model="unpinnedCourses"
-          item-key="id"
-          ghost-class="drag-ghost"
-          chosen-class="drag-chosen"
-          drag-class="drag-active"
-          @change="onMainSortChange"
-          style="display: contents;"
+        <!-- 课程卡片列表（普通 v-for，暂时禁用拖拽） -->
+        <div
+            class="course-card"
+            :class="{ 'archived-card': isCourseArchived(element) }"
+            v-for="element in unpinnedCourses"
+            :key="element.id"
+            @click="enterCourse(element)"
         >
-          <template #item="{ element }">
-            <div
-              class="course-card"
-              :class="{ 'archived-card': isCourseArchived(element) }"
-              @click="enterCourse(element)"
+          <div class="course-cover">
+            <div class="cover-bg" :style="{ background: getCoverColor(element.id) }"></div>
+            <div class="cover-content">
+              <div class="course-title">{{ element.name }}</div>
+              <div class="course-subtitle" v-if="element.department">{{ element.department }}</div>
+            </div>
+            <div class="teacher-badge" v-if="isTeacherOfCourse(element)">教</div>
+            <el-dropdown
+                class="more-dropdown"
+                trigger="click"
+                @command="handleCommand"
+                @visible-change="(v) => onDropdownVisible(v, element)"
             >
-              <div class="course-cover">
-                <div class="cover-bg" :style="{ background: getCoverColor(element.id) }"></div>
-                <div class="cover-content">
-                  <div class="course-title">{{ element.name }}</div>
-                  <div class="course-subtitle" v-if="element.department">{{ element.department }}</div>
-                </div>
-                <div class="teacher-badge" v-if="isTeacherOfCourse(element)">教</div>
-                <el-dropdown
-                  class="more-dropdown"
-                  trigger="click"
-                  @command="handleCommand"
-                  @visible-change="(v) => onDropdownVisible(v, element)"
-                >
-                  <div class="more-btn" @click.stop>
-                    <el-icon><MoreFilled /></el-icon>
-                  </div>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item :command="{ action: 'pin', course: element }">置顶</el-dropdown-item>
-                      <el-dropdown-item :command="{ action: 'edit', course: element }">编辑</el-dropdown-item>
-                      <el-dropdown-item :command="{ action: 'delete', course: element }">删除</el-dropdown-item>
-                      <el-dropdown-item :command="{ action: 'archive', course: element }" v-if="!isCourseArchived(element)">归档</el-dropdown-item>
-                      <el-dropdown-item :command="{ action: 'restore', course: element }" v-if="isCourseArchived(element)">恢复课程</el-dropdown-item>
-                      <el-dropdown-item :command="{ action: 'download', course: element }">打包下载</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+              <div class="more-btn" @click.stop>
+                <el-icon><MoreFilled /></el-icon>
               </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item :command="{ action: 'pin', course: element }">置顶</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'edit', course: element }">编辑</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'delete', course: element }">删除</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'archive', course: element }" v-if="!isCourseArchived(element)">归档</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'restore', course: element }" v-if="isCourseArchived(element)">恢复课程</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'download', course: element }">打包下载</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
 
-              <div class="course-body">
-                <div class="course-code-row">
-                  <el-icon><Grid /></el-icon>
-                  <span>加课码：</span>
-                  <span class="course-code">{{ element.courseNo }}</span>
-                  <el-icon class="arrow-down"><ArrowDown /></el-icon>
-                </div>
+          <div class="course-body">
+            <div class="course-code-row">
+              <el-icon><Grid /></el-icon>
+              <span>加课码：</span>
+              <span class="course-code">{{ element.courseNo }}</span>
+              <el-icon class="arrow-down"><ArrowDown /></el-icon>
+            </div>
 
-                <div class="homework-section">
-                  <div class="section-label">近期作业</div>
-                  <div class="homework-list">
-                    <div class="homework-item" v-for="(hw, i) in getRecentHomework(element)" :key="i">
-                      {{ hw }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="course-footer">
-                <div class="member-info" @click.stop="openStudentDialog(element)" style="cursor: pointer;">
-                  <el-icon><Avatar /></el-icon>
-                  <span>成员{{ element.enrolledCount || 0 }}人</span>
-                </div>
-                <div class="footer-actions">
-                  <el-button link size="small" class="top-btn" @click.stop="togglePin(element)">
-                    置顶
-                  </el-button>
+            <div class="homework-section">
+              <div class="section-label">近期作业</div>
+              <div class="homework-list">
+                <div class="homework-item" v-for="(hw, i) in getRecentHomework(element)" :key="i">
+                  {{ hw }}
                 </div>
               </div>
             </div>
-          </template>
-        </draggable>
+          </div>
 
-        <!-- 创建课程卡片，和课程卡片在同一行 -->
+          <div class="course-footer">
+            <div class="member-info" @click.stop="openStudentDialog(element)" style="cursor: pointer;">
+              <el-icon><Avatar /></el-icon>
+              <span>成员{{ element.enrolledCount || 0 }}人</span>
+            </div>
+            <div class="footer-actions">
+              <el-button link size="small" class="top-btn" @click.stop="togglePin(element)">
+                置顶
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 创建课程卡片 -->
         <div class="course-card create-card" @click="openAddModal">
           <div class="create-inner">
             <el-icon class="create-icon"><Plus /></el-icon>
@@ -220,31 +210,21 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="archiveDialogVisible" width="700px" destroy-on-close>
+    <el-dialog v-model="archiveDialogVisible" title="归档管理" width="700px" destroy-on-close>
       <el-tabs v-model="activeTab" class="archive-tabs">
         <el-tab-pane label="课程排序" name="sort">
-          <div class="sort-list-wrapper">
-            <div v-if="sortedCourses.length > 0">
-              <draggable
-                v-model="sortedCourses"
-                item-key="id"
-                class="sort-list"
-                ghost-class="drag-ghost"
-                chosen-class="drag-chosen"
-                @change="onDialogSortChange"
-              >
-                <template #item="{ element, index }">
-                  <div class="sort-item" :class="{ 'pinned-sort-item': isPinned(element) }">
-                    <el-radio v-model="currentSortIndex" :label="index" class="sort-radio">
-                      {{ element.name }}
-                    </el-radio>
-                    <el-tag v-if="isPinned(element)" type="danger" size="small" effect="light">置顶</el-tag>
-                  </div>
-                </template>
-              </draggable>
+          <div v-if="sortedCourses.length > 0">
+            <!-- 排序列表（普通 v-for，暂时禁用拖拽） -->
+            <div class="sort-list">
+              <div class="sort-item" v-for="(element, index) in sortedCourses" :key="element.id">
+                <el-icon class="drag-handle"><Rank /></el-icon>
+                <el-radio v-model="currentSortIndex" :label="index" class="sort-radio"></el-radio>
+                <span class="sort-course-name">{{ element.name }}</span>
+                <span class="sort-course-sub" v-if="element.department">{{ element.department }}</span>
+              </div>
             </div>
-            <div v-else class="empty-tip">暂无课程</div>
           </div>
+          <div v-else class="empty-tip">暂无课程</div>
         </el-tab-pane>
 
         <el-tab-pane label="归档管理" name="archive">
@@ -253,9 +233,9 @@
               <div class="archive-cover" :style="{ background: getCoverColor(course.id) }">
                 <div class="archive-title">{{ course.name }}</div>
                 <el-dropdown
-                  class="archive-more"
-                  trigger="click"
-                  @command="handleArchiveCommand"
+                    class="archive-more"
+                    trigger="click"
+                    @command="handleArchiveCommand"
                 >
                   <div class="more-btn" @click.stop>
                     <el-icon><MoreFilled /></el-icon>
@@ -308,13 +288,20 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/store/user';
 import {
-  getTeacherCourses, createCourse, updateCourse, deleteCourse, archiveCourse, getCourseByNo, getCourseAllStudent
+  getTeacherCourses,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  archiveCourse,
+  getCourseByNo,
+  getCourseAllStudent,
+  teacherJoinCourse
 } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus, Sort, Box, Promotion, MoreFilled, Grid, ArrowDown, Avatar, Rank
 } from '@element-plus/icons-vue';
-import draggable from 'vuedraggable';
+//import draggable from 'vuedraggable';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -420,19 +407,25 @@ const initDisplayCourses = () => {
   const pinned = active.filter(c => isPinned(c));
   const unpinned = active.filter(c => !isPinned(c));
   
-  const sortByOrder = (a, b) => {
+  // 置顶课程按置顶顺序排序
+  pinnedCourses.value = pinned.sort((a, b) => {
+    const orderA = extra[a.id]?.pinOrder ?? 9999;
+    const orderB = extra[b.id]?.pinOrder ?? 9999;
+    if (orderA !== orderB) return orderA - orderB;
+    return b.id - a.id;
+  });
+  
+  // 非置顶课程按拖拽排序
+  unpinnedCourses.value = unpinned.sort((a, b) => {
     const orderA = extra[a.id]?.sortOrder ?? 9999;
     const orderB = extra[b.id]?.sortOrder ?? 9999;
     if (orderA !== orderB) return orderA - orderB;
     return b.id - a.id;
-  };
-  
-  pinnedCourses.value = pinned.sort(sortByOrder);
-  unpinnedCourses.value = unpinned.sort(sortByOrder);
+  });
 };
 
 const sortedCourses = computed(() => {
-  return [...pinnedCourses.value, ...unpinnedCourses.value];
+  return unpinnedCourses.value;
 });
 
 const archivedCourses = computed(() => {
@@ -470,10 +463,10 @@ const initSortOrder = () => {
 };
 
 // 拖拽排序保存逻辑（主页面和弹窗共用）
-const saveSortOrder = (list) => {
-  const courses = list || unpinnedCourses.value;
+const saveSortOrder = () => {
+  const list = unpinnedCourses.value;
   const extra = getExtraData();
-  courses.forEach((course, idx) => {
+  list.forEach((course, idx) => {
     if (!extra[course.id]) extra[course.id] = { sortOrder: idx, archiveSelf: false, pinned: false };
     extra[course.id].sortOrder = idx;
   });
@@ -482,14 +475,13 @@ const saveSortOrder = (list) => {
 
 // 主页面拖拽回调
 const onMainSortChange = () => {
-  saveSortOrder(unpinnedCourses.value);
+  saveSortOrder();
   ElMessage.success('课程顺序已更新');
 };
 
 // 弹窗排序回调
 const onDialogSortChange = () => {
-  saveSortOrder(sortedCourses.value);
-  initDisplayCourses();
+  saveSortOrder();
   ElMessage.success('课程顺序已更新');
 };
 
@@ -635,24 +627,29 @@ const submitCourse = async () => {
   submitting.value = true;
   try {
     if (isJoinMode.value) {
-      const res = await getCourseByNo(joinCode.value);
-      if (res.code === 200 && res.data) {
+      // ✅ 教师加入课程
+      const res = await teacherJoinCourse(
+          userStore.userInfo.id,
+          userStore.userInfo.name || '教师',
+          joinCode.value
+      );
+      if (res.code === 200) {
         ElMessage.success('加入成功');
         addDialogVisible.value = false;
         loadCourses();
       } else {
-        ElMessage.error('未找到该课程，请检查加课码');
+        ElMessage.error(res.message || '加入失败，请检查加课码');
       }
     } else {
+      // 创建课程
       const data = {
         ...courseForm.value,
         teacherId: userStore.userInfo.id,
         teacherName: userStore.userInfo.name || '教师'
       };
       const res = isEdit.value
-        ? await updateCourse(editingCourseId.value, data)
-        : await createCourse(data);
-
+          ? await updateCourse(editingCourseId.value, data)
+          : await createCourse(data);
       if (res.code === 200) {
         ElMessage.success(isEdit.value ? '修改成功' : '创建成功');
         addDialogVisible.value = false;
@@ -1046,11 +1043,6 @@ onMounted(loadCourses);
   margin-bottom: 20px;
 }
 
-.sort-list-wrapper {
-  max-height: 280px;
-  overflow-y: auto;
-}
-
 .sort-list {
   display: flex;
   flex-direction: column;
@@ -1059,9 +1051,9 @@ onMounted(loadCourses);
 .sort-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 14px 16px;
   border-bottom: 1px solid #f2f6fc;
+  cursor: move;
   transition: background 0.2s;
 }
 
@@ -1069,12 +1061,25 @@ onMounted(loadCourses);
   background: #f5f7fa;
 }
 
-.pinned-sort-item {
-  background: #fef0f0;
+.drag-handle {
+  color: #c0c4cc;
+  margin-right: 12px;
+  font-size: 16px;
 }
 
 .sort-radio {
+  margin-right: 12px;
+}
+
+.sort-course-name {
+  font-size: 14px;
+  color: #303133;
   flex: 1;
+}
+
+.sort-course-sub {
+  font-size: 13px;
+  color: #909399;
 }
 
 .archive-grid {

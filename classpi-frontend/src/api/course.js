@@ -118,3 +118,12 @@ export function createTopic(data) {
     data // data 应包含 { courseId, title, content }
   })
 }
+
+// 教师加入课程
+export function teacherJoinCourse(teacherId, teacherName, courseNo) {
+  return request({
+    url: '/course/teacher/join',
+    method: 'post',
+    params: { teacherId, teacherName, courseNo }
+  })
+}

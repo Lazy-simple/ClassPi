@@ -95,4 +95,15 @@ public class CourseController {
     public Result archiveCourse(@PathVariable Integer id, @RequestParam Boolean archived) {
         return courseService.archiveCourse(id, archived);
     }
+
+    /**
+     * 教师加入课程（通过加课码）
+     * POST /course/teacher/join
+     */
+    @PostMapping("/teacher/join")
+    public Result teacherJoinCourse(@RequestParam String teacherId,
+                                    @RequestParam String teacherName,
+                                    @RequestParam String courseNo) {
+        return courseService.teacherJoinCourse(teacherId, teacherName, courseNo);
+    }
 }

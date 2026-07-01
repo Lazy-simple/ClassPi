@@ -4,13 +4,18 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.classpi.common.Result;
 import com.classpi.dto.CourseDTO;
 import com.classpi.entity.Course;
+import com.classpi.entity.CourseTeacher;
 import com.classpi.entity.StudentCourse;
 import com.classpi.mapper.CourseMapper;
+import com.classpi.mapper.CourseTeacherMapper;
 import com.classpi.mapper.StudentCourseMapper;
 import com.classpi.service.CourseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,6 +24,9 @@ import java.util.List;
 
 @Service
 public class CourseServiceImpl implements CourseService {
+
+    @Autowired
+    private CourseTeacherMapper courseTeacherMapper;
 
     @Autowired
     private CourseMapper courseMapper;
@@ -48,8 +56,19 @@ public class CourseServiceImpl implements CourseService {
         course.setCredit(courseDTO.getCredit() != null ? courseDTO.getCredit() : 3);
         course.setCapacity(courseDTO.getCapacity() != null ? courseDTO.getCapacity() : 50);
         course.setEnrolledCount(0);
+        course.setStatus(0);
 
         courseMapper.insert(course);
+
+        // ✅ 创建者自动加入 course_teacher 表
+        CourseTeacher ct = new CourseTeacher();
+        ct.setCourseId(course.getId());
+        ct.setTeacherId(courseDTO.getTeacherId());
+        ct.setTeacherName(courseDTO.getTeacherName() != null ? courseDTO.getTeacherName() : "教师");
+        ct.setRole(1); // 创建者
+        ct.setJoinTime(LocalDateTime.now());
+        courseTeacherMapper.insert(ct);
+
         return Result.success("课程创建成功", course);
     }
 
@@ -101,15 +120,6 @@ public class CourseServiceImpl implements CourseService {
 
         courseMapper.deleteById(id);
         return Result.success("课程删除成功");
-    }
-
-    @Override
-    public Result getTeacherCourses(String teacherId) {
-        QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("teacher_id", teacherId);
-        List<Course> courses = courseMapper.selectList(queryWrapper);
-
-        return Result.success("获取教师课程列表成功", courses);
     }
 
     @Override
@@ -264,15 +274,26 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result getTeacherCourses(String teacherId, Boolean includeArchived) {
-        QueryWrapper<Course> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("teacher_id", teacherId);
+        // ✅ 从 course_teacher 表查询该教师关联的所有课程
+        QueryWrapper<CourseTeacher> ctWrapper = new QueryWrapper<>();
+        ctWrapper.eq("teacher_id", teacherId);
+        List<CourseTeacher> ctList = courseTeacherMapper.selectList(ctWrapper);
 
-        // ✅ 如果不包含归档，只查进行中的
-        if (!includeArchived) {
-            queryWrapper.eq("status", 0);
+        if (ctList.isEmpty()) {
+            return Result.success("获取教师课程列表成功", new ArrayList<>());
         }
 
-        List<Course> courses = courseMapper.selectList(queryWrapper);
+        List<Integer> courseIds = ctList.stream()
+                .map(CourseTeacher::getCourseId)
+                .collect(Collectors.toList());
+
+        QueryWrapper<Course> courseWrapper = new QueryWrapper<>();
+        courseWrapper.in("id", courseIds);
+        if (!includeArchived) {
+            courseWrapper.eq("status", 0);
+        }
+
+        List<Course> courses = courseMapper.selectList(courseWrapper);
         return Result.success("获取教师课程列表成功", courses);
     }
 
@@ -326,5 +347,36 @@ public class CourseServiceImpl implements CourseService {
         } else {
             return Result.error("操作失败");
         }
+    }
+
+    @Override
+    @Transactional
+    public Result teacherJoinCourse(String teacherId, String teacherName, String courseNo) {
+        // 1. 查询课程是否存在
+        QueryWrapper<Course> courseWrapper = new QueryWrapper<>();
+        courseWrapper.eq("course_no", courseNo);
+        Course course = courseMapper.selectOne(courseWrapper);
+        if (course == null) {
+            return Result.error("课程不存在，请检查加课码");
+        }
+
+        // 2. 检查该教师是否已加入该课程
+        QueryWrapper<CourseTeacher> checkWrapper = new QueryWrapper<>();
+        checkWrapper.eq("course_id", course.getId())
+                .eq("teacher_id", teacherId);
+        if (courseTeacherMapper.selectCount(checkWrapper) > 0) {
+            return Result.error("您已加入该课程，无需重复加入");
+        }
+
+        // 3. 插入关联记录
+        CourseTeacher ct = new CourseTeacher();
+        ct.setCourseId(course.getId());
+        ct.setTeacherId(teacherId);
+        ct.setTeacherName(teacherName);
+        ct.setRole(2); // 协作者
+        ct.setJoinTime(LocalDateTime.now());
+        courseTeacherMapper.insert(ct);
+
+        return Result.success("加入课程成功", course);
     }
 }
