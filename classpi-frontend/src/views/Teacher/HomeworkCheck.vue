@@ -150,6 +150,13 @@ import { ElMessage } from 'element-plus'
 import { getHomeworkSubmissions, checkHomework, getTeacherHomeworkList } from '@/api/homework'
 import { useRoute } from 'vue-router'
 
+const props = defineProps({
+  courseId: {
+    type: [Number, String],
+    default: ''
+  }
+})
+
 const route = useRoute()
 const userStore = useUserStore()
 const listLoading = ref(false)
@@ -178,13 +185,20 @@ const correctForm = ref({
   correctionContent: ''
 })
 
-// ========== 新增：加载教师的所有作业 ==========
+// ========== 新增：加载教师的所有作业，按当前课程过滤 ==========
 const loadHomeworkList = async () => {
   try {
     const teacherId = userStore.userInfo?.id
     const res = await getTeacherHomeworkList(teacherId)
     if (res.code === 200) {
-      homeworkList.value = res.data || []
+      const allList = res.data || []
+      if (props.courseId) {
+        homeworkList.value = allList.filter(hw =>
+          String(hw.courseId) === String(props.courseId)
+        )
+      } else {
+        homeworkList.value = allList
+      }
       if (homeworkList.value.length > 0) {
         selectedHomeworkId.value = homeworkList.value[0].id
         await loadSubmissions()
