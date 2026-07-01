@@ -223,26 +223,28 @@
     <el-dialog v-model="archiveDialogVisible" width="700px" destroy-on-close>
       <el-tabs v-model="activeTab" class="archive-tabs">
         <el-tab-pane label="课程排序" name="sort">
-          <div v-if="sortedCourses.length > 0">
-            <draggable
-              v-model="sortedCourses"
-              item-key="id"
-              class="sort-list"
-              ghost-class="drag-ghost"
-              chosen-class="drag-chosen"
-              @change="onDialogSortChange"
-            >
-              <template #item="{ element, index }">
-                <div class="sort-item" :class="{ 'pinned-sort-item': isPinned(element) }">
-                  <el-radio v-model="currentSortIndex" :label="index" class="sort-radio">
-                    {{ element.name }}
-                  </el-radio>
-                  <el-tag v-if="isPinned(element)" type="danger" size="small" effect="light">置顶</el-tag>
-                </div>
-              </template>
-            </draggable>
+          <div class="sort-list-wrapper">
+            <div v-if="sortedCourses.length > 0">
+              <draggable
+                v-model="sortedCourses"
+                item-key="id"
+                class="sort-list"
+                ghost-class="drag-ghost"
+                chosen-class="drag-chosen"
+                @change="onDialogSortChange"
+              >
+                <template #item="{ element, index }">
+                  <div class="sort-item" :class="{ 'pinned-sort-item': isPinned(element) }">
+                    <el-radio v-model="currentSortIndex" :label="index" class="sort-radio">
+                      {{ element.name }}
+                    </el-radio>
+                    <el-tag v-if="isPinned(element)" type="danger" size="small" effect="light">置顶</el-tag>
+                  </div>
+                </template>
+              </draggable>
+            </div>
+            <div v-else class="empty-tip">暂无课程</div>
           </div>
-          <div v-else class="empty-tip">暂无课程</div>
         </el-tab-pane>
 
         <el-tab-pane label="归档管理" name="archive">
@@ -1029,6 +1031,11 @@ onMounted(loadCourses);
 
 .archive-tabs :deep(.el-tabs__header) {
   margin-bottom: 20px;
+}
+
+.sort-list-wrapper {
+  max-height: 280px;
+  overflow-y: auto;
 }
 
 .sort-list {
