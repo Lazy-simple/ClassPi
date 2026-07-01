@@ -52,26 +52,30 @@
             </div>
             <p class="hw-desc">{{ hw.description || '暂无描述' }}</p>
             <div class="hw-footer">
-              <span class="hw-deadline">
-                <el-icon><Clock /></el-icon>
-                截止时间: {{ hw.deadline || '--' }}
-              </span>
-              <el-button
-                  v-if="getHomeworkStatus(hw).text === '未提交'"
-                  type="primary"
-                  size="small"
-                  @click="goToSubmit(hw.id)"
-              >
-                <el-icon><UploadFilled /></el-icon> 提交作业
-              </el-button>
-              <el-button
-                  v-else
-                  type="success"
-                  size="small"
-                  disabled
-              >
-                <el-icon><Check /></el-icon> {{ getHomeworkStatus(hw).text }}
-              </el-button>
+  <span class="hw-deadline">
+    <el-icon><Clock /></el-icon>
+    截止时间: {{ hw.deadline || '--' }}
+  </span>
+
+              <!-- ✅ 用 v-if/v-else-if 而不是多个 v-else -->
+              <template v-if="getHomeworkStatus(hw).text === '未提交'">
+                <el-button
+                    type="primary"
+                    size="small"
+                    @click="goToSubmit(hw.id)"
+                >
+                  <el-icon><UploadFilled /></el-icon> 提交作业
+                </el-button>
+              </template>
+              <template v-else>
+                <el-button
+                    type="warning"
+                    size="small"
+                    @click="goToSubmit(hw.id)"
+                >
+                  <el-icon><RefreshRight /></el-icon> 重新提交
+                </el-button>
+              </template>
             </div>
           </div>
         </div>
@@ -266,7 +270,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage,ElMessageBox } from 'element-plus'
 import {
   User, Collection, DocumentChecked, Document, ChatDotRound, Clock,
-  UploadFilled, Check, Link, Folder, Plus, ArrowLeft
+  UploadFilled, Check, Link, Folder, Plus, ArrowLeft, RefreshRight
 } from '@element-plus/icons-vue'
 import { getStudentCourses } from '@/api/course'
 import { getHomeworkByCourse,getStudentHomeworkStatus } from '@/api/homework'
