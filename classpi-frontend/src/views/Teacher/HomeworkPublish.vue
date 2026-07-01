@@ -24,43 +24,39 @@
         <el-form-item label="作业简介">
           <div class="editor-wrapper">
             <div class="editor-toolbar">
-              <span class="toolbar-item">B</span>
-              <span class="toolbar-item">I</span>
-              <span class="toolbar-item">U</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('bold')" title="加粗">B</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('italic')" title="斜体">I</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('underline')" title="下划线">U</span>
               <span class="toolbar-divider"></span>
-              <span class="toolbar-item">S</span>
-              <span class="toolbar-item">66</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('strikeThrough')" title="删除线">S</span>
               <span class="toolbar-divider"></span>
-              <span class="toolbar-item">H1</span>
-              <span class="toolbar-item">H2</span>
-              <span class="toolbar-item">H3</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('h1')" title="标题1">H1</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('h2')" title="标题2">H2</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('h3')" title="标题3">H3</span>
               <span class="toolbar-divider"></span>
-              <span class="toolbar-item">☰</span>
-              <span class="toolbar-item">☷</span>
-              <span class="toolbar-item">❒</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('insertUnorderedList')" title="无序列表">☰</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('insertOrderedList')" title="有序列表">☷</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('justifyLeft')" title="左对齐">↔</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('justifyCenter')" title="居中">↕</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('justifyRight')" title="右对齐">↔</span>
               <span class="toolbar-divider"></span>
-              <span class="toolbar-item">↔</span>
-              <span class="toolbar-item">↕</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('insertParagraphBefore')" title="上方插入段落">⊕</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('insertParagraphAfter')" title="下方插入段落">⊖</span>
               <span class="toolbar-divider"></span>
-              <span class="toolbar-item">⊕</span>
-              <span class="toolbar-item">⊖</span>
-              <span class="toolbar-divider"></span>
-              <span class="toolbar-item">Ω</span>
-              <span class="toolbar-item">∑</span>
-              <span class="toolbar-divider"></span>
-              <span class="toolbar-item">📷</span>
-              <span class="toolbar-item">🔗</span>
-              <span class="toolbar-divider"></span>
-              <span class="toolbar-item">☝</span>
-              <span class="toolbar-item">✎</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('undo')" title="撤销">☝</span>
+              <span class="toolbar-item" @mousedown.prevent="formatText('redo')" title="重做">✎</span>
             </div>
-            <el-input 
-              v-model="form.content" 
-              type="textarea" 
-              :rows="6" 
+            <div 
+              ref="editorRef"
+              contenteditable="true" 
+              class="editor-content"
               placeholder="作业简介，作业格式要求,温馨提醒：word,pdf,txt等文字性的文档，都可以进行查重"
-              class="editor-textarea"
-            />
+              @input="handleEditorInput"
+              @keyup="saveSelection"
+              @mouseup="saveSelection"
+              @focus="editorFocused = true"
+              @blur="editorFocused = false"
+            ></div>
           </div>
         </el-form-item>
 
@@ -188,6 +184,9 @@ const userStore = useUserStore();
 const submitting = ref(false);
 const importing = ref(false);
 const courseList = ref([]);
+const editorRef = ref(null);
+const editorFocused = ref(false);
+const savedRange = ref(null);
 
 const form = ref({
   courseId: '',
@@ -245,6 +244,99 @@ const formatTime = (time) => {
   return new Date(time).toLocaleString('zh-CN');
 };
 
+const formatText = (command) => {
+  if (!editorRef.value) return;
+  
+  restoreSelection();
+  const selection = window.getSelection();
+  
+  switch (command) {
+    case 'insertParagraphBefore':
+      {
+        const range = selection.getRangeAt(0);
+        const br = document.createElement('br');
+        range.insertNode(br);
+        const newRange = document.createRange();
+        newRange.setStartBefore(br);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        savedRange.value = newRange.cloneRange();
+      }
+      break;
+    case 'insertParagraphAfter':
+      {
+        const range = selection.getRangeAt(0);
+        const br = document.createElement('br');
+        range.insertNode(br);
+        const newRange = document.createRange();
+        newRange.setStartAfter(br);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        savedRange.value = newRange.cloneRange();
+      }
+      break;
+    case 'redo':
+      editorRef.value.innerHTML = '';
+      form.value.content = '';
+      savedRange.value = null;
+      break;
+    case 'h1':
+      document.execCommand('formatBlock', false, '<h1>');
+      saveSelection();
+      break;
+    case 'h2':
+      document.execCommand('formatBlock', false, '<h2>');
+      saveSelection();
+      break;
+    case 'h3':
+      document.execCommand('formatBlock', false, '<h3>');
+      saveSelection();
+      break;
+    default:
+      document.execCommand(command, false, null);
+      saveSelection();
+      break;
+  }
+  
+  handleEditorInput();
+};
+
+const saveSelection = () => {
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0 && editorRef.value) {
+    const range = selection.getRangeAt(0);
+    if (editorRef.value.contains(range.commonAncestorContainer)) {
+      savedRange.value = range.cloneRange();
+    }
+  }
+};
+
+const restoreSelection = () => {
+  if (!editorRef.value) return;
+  
+  editorRef.value.focus();
+  const selection = window.getSelection();
+  
+  if (savedRange.value) {
+    selection.removeAllRanges();
+    selection.addRange(savedRange.value);
+  } else {
+    const range = document.createRange();
+    range.selectNodeContents(editorRef.value);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+};
+
+const handleEditorInput = () => {
+  if (editorRef.value) {
+    form.value.content = editorRef.value.innerHTML;
+  }
+};
+
 watch(showImportDialog, (newVal) => {
   if (newVal) {
     loadPreparationList();
@@ -297,6 +389,9 @@ const submitImport = async () => {
     if (item) {
       form.value.title = item.title;
       form.value.content = item.content;
+      if (editorRef.value) {
+        editorRef.value.innerHTML = item.content || '';
+      }
       if (item.courseId) {
         form.value.courseId = Number(item.courseId);
       }
@@ -310,6 +405,9 @@ const submitImport = async () => {
     if (item) {
       form.value.title = item.title;
       form.value.content = item.content;
+      if (editorRef.value) {
+        editorRef.value.innerHTML = item.content || '';
+      }
       if (item.courseId) {
         form.value.courseId = Number(item.courseId);
       }
@@ -333,6 +431,9 @@ const handleCancel = () => {
     rejectThreshold: 50,
     files: []
   };
+  if (editorRef.value) {
+    editorRef.value.innerHTML = '';
+  }
 };
 
 const submit = async () => {
@@ -424,10 +525,17 @@ watch(importTab, handleImportTabChange);
   font-size: 14px;
   color: #606266;
   border-radius: 4px;
+  transition: all 0.2s;
 }
 
 .toolbar-item:hover {
   background-color: #e4e7ed;
+  color: #409eff;
+}
+
+.toolbar-item:active {
+  background-color: #dcdfe6;
+  transform: scale(0.95);
 }
 
 .toolbar-divider {
@@ -437,14 +545,58 @@ watch(importTab, handleImportTabChange);
   margin: 0 5px;
 }
 
-.editor-textarea {
-  border: none;
-  resize: none;
+.editor-content {
+  min-height: 150px;
   padding: 15px;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #303133;
+  background-color: #fff;
 }
 
-.editor-textarea:focus {
+.editor-content:focus {
   outline: none;
+}
+
+.editor-content:empty:before {
+  content: attr(placeholder);
+  color: #909399;
+  pointer-events: none;
+}
+
+.editor-content h1 {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 10px 0;
+  color: #303133;
+}
+
+.editor-content h2 {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 8px 0;
+  color: #303133;
+}
+
+.editor-content h3 {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 6px 0;
+  color: #303133;
+}
+
+.editor-content ul, .editor-content ol {
+  padding-left: 24px;
+  margin: 8px 0;
+}
+
+.editor-content li {
+  margin: 4px 0;
+}
+
+.editor-content p {
+  margin: 6px 0;
 }
 
 .check-item {
