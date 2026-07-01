@@ -196,6 +196,7 @@ const loadCourses = async () => {
                   title: hw.title,
                   deadline: hw.deadline || '--'
                 }
+                await checkSubmittedStatus(Number(savedHomeworkId))
               }
             }
           }
@@ -234,7 +235,7 @@ const onCourseChange = async (courseId) => {
 }
 
 // 选择作业后更新显示
-const onHomeworkChange = (homeworkId) => {
+const onHomeworkChange = async (homeworkId) => {
   const hw = homeworkList.value.find(h => h.id === homeworkId)
   if (hw) {
     assignmentData.value = {
@@ -244,6 +245,9 @@ const onHomeworkChange = (homeworkId) => {
       deadline: hw.deadline || '--'
     }
     form.value.homeworkId = homeworkId
+
+    // ✅ 检查该作业是否已提交
+    await checkSubmittedStatus(homeworkId)
   }
 }
 
@@ -311,6 +315,29 @@ const submitHomeworkHandler = async () => {
     }
   } finally {
     submitting.value = false
+  }
+}
+
+// 新增：检查某个作业是否已提交
+const checkSubmittedStatus = async (homeworkId) => {
+  try {
+    const studentId = userStore.userInfo?.id || localStorage.getItem('userId')
+    // 调用后端接口查询该学生该作业的提交状态
+    const res = await getStudentHomeworkStatus(studentId, homeworkId)
+    if (res.code === 200 && res.data) {
+      isSubmitted.value = true
+      // 如果有提交记录，可以回填一些信息
+      if (res.data.fileName) {
+        form.value.fileName = res.data.fileName
+        form.value.fileUrl = res.data.fileUrl
+        form.value.fileType = res.data.fileType
+      }
+    } else {
+      isSubmitted.value = false
+    }
+  } catch (error) {
+    console.error('检查提交状态失败:', error)
+    isSubmitted.value = false
   }
 }
 

@@ -281,7 +281,7 @@ import {
   UploadFilled, Check, Link, Folder, Plus, ArrowLeft
 } from '@element-plus/icons-vue'
 import { getStudentCourses } from '@/api/course'
-import { getHomeworkByCourse } from '@/api/homework'
+import { getHomeworkByCourse,getStudentHomeworkStatus } from '@/api/homework'
 import { getResourceTree, downloadResource as downloadRes } from '@/api/resource'
 import { getTopicList, publishTopic, getCommentList, addComment,deleteTopic,editTopic } from '@/api/topic'
 import { useUserStore } from '@/store/user'
@@ -349,10 +349,27 @@ const loadHomework = async () => {
   try {
     const res = await getHomeworkByCourse(courseId.value)
     if (res.code === 200) {
-      homeworkList.value = res.data || []
+      const homeworkData = res.data || []
+
+      // ✅ 检查每个作业是否已提交（只需要传 homeworkId）
+      for (const hw of homeworkData) {
+        try {
+          const statusRes = await getStudentHomeworkStatus(hw.id)
+          if (statusRes.code === 200 && statusRes.data) {
+            hw.submitted = true
+          } else {
+            hw.submitted = false
+          }
+        } catch (e) {
+          hw.submitted = false
+        }
+      }
+
+      homeworkList.value = homeworkData
     }
   } catch (error) {
     console.error('加载作业失败:', error)
+    ElMessage.error('加载作业失败')
   } finally {
     loading.value = false
   }
