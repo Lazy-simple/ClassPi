@@ -98,13 +98,11 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '@/utils/request';
 import { getTeacherCourses, getCourseAllStudent } from '@/api/course';
-// ✅ 保留你原来的所有图标，新增 Monitor 用于工作台按钮
 import { User, DocumentChecked, TrendCharts, ArrowRight, Monitor } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
 const router = useRouter();
 
-// 1. 定义响应式数据
 let storedUser = {};
 try {
   const userStr = localStorage.getItem('userInfo');
@@ -120,32 +118,59 @@ const stats = ref({
   avgScore: 0
 });
 
-// 2. 获取数据的函数
+// 获取数据的函数
 const fetchDashboardData = async () => {
   try {
-    const res = await request.get('/api/teacher/stats');
-    if (res.code === 200 || res.status === 200) {
-      const data = res.data || {};
-      stats.value = {
-        studentCount: data.studentCount || 0,
-        pendingHomework: data.pendingHomework || 0,
-        avgScore: data.avgScore || 0
-      };
+    const teacherId = storedUser.id || storedUser.teacherId;
+    if (!teacherId) {
+      console.warn('未获取到教师ID');
+      return;
     }
+
+    // 1. 获取教师的所有课程
+    const courseRes = await getTeacherCourses(teacherId, true);
+    const courses = courseRes.data || courseRes.list || [];
+
+    // 2. 去重统计学生人数（一个学生可能选多门课）
+    const studentSet = new Set();
+
+    for (const course of courses) {
+      try {
+        const courseId = course.courseId || course.id;
+        const res = await getCourseAllStudent(courseId);
+        if (res.code === 200 && res.data) {
+          res.data.forEach(s => {
+            // ✅ 用 studentId 去重
+            if (s.studentId) {
+              studentSet.add(s.studentId);
+            }
+          });
+        }
+      } catch (e) {
+        console.error('获取课程学生失败:', course.courseName, e);
+      }
+    }
+
+    // 3. 待批阅作业数量（模拟，实际可从后端获取）
+    const pendingHomework = 0; // 可从后端获取或计算
+
+    // 4. 平均活跃度（模拟）
+    const avgScore = 0;
+
+    stats.value = {
+      studentCount: studentSet.size,  // ✅ 去重后的学生人数
+      pendingHomework: pendingHomework,
+      avgScore: avgScore
+    };
+
   } catch (error) {
     console.error('获取仪表盘数据失败:', error);
   }
 };
 
-// ✅ 新增：跳转到工作台的函数
-// 这里指向 /main/teacher-course 是因为通常工作台默认展示课程列表
+// 跳转到工作台
 const goToWorkbench = () => {
-  console.log('点击立即进入，准备跳转到 /main/teacher-course');
-  router.push('/main/teacher-course').then(() => {
-    console.log('路由跳转成功');
-  }).catch((err) => {
-    console.error('路由跳转失败:', err);
-  });
+  router.push('/main/teacher-course');
 };
 
 // 学生列表弹窗
@@ -162,28 +187,37 @@ const openStudentList = async () => {
       return;
     }
     const courseRes = await getTeacherCourses(teacherId, true);
-    console.log('教师课程列表:', courseRes);
     const courses = courseRes.data || courseRes.list || [];
-    const allStudents = [];
+
+    // ✅ 用 Map 去重，同一学生只保留一条记录
+    const studentMap = new Map();
+
     for (const course of courses) {
       try {
         const courseId = course.courseId || course.id;
         const res = await getCourseAllStudent(courseId);
-        console.log('课程学生:', course.courseName, res);
         if (res.code === 200 && res.data) {
           res.data.forEach(s => {
-            allStudents.push({
-              ...s,
-              courseName: course.courseName
-            });
+            const key = s.studentId;
+            if (!studentMap.has(key)) {
+              studentMap.set(key, {
+                ...s,
+                courseName: course.courseName || course.name
+              });
+            } else {
+              // 如果已存在，追加课程名
+              const exist = studentMap.get(key);
+              exist.courseName = (exist.courseName || '') + '、' + (course.courseName || course.name);
+            }
           });
         }
       } catch (e) {
         console.error('获取课程学生失败:', course.courseName, e);
       }
     }
-    studentList.value = allStudents;
-    console.log('最终学生列表:', studentList.value);
+
+    studentList.value = Array.from(studentMap.values());
+    console.log('去重后学生列表:', studentList.value);
   } catch (err) {
     console.error('获取学生列表异常:', err);
     ElMessage.error('获取学生列表失败');

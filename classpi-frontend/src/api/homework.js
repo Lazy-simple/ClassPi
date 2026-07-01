@@ -88,3 +88,12 @@ export function getTeacherHomeworkList(teacherId) {
     method: 'get'
   })
 }
+
+// 查询学生某作业的提交状态 - ✅ 只需要传 homeworkId
+export function getStudentHomeworkStatus(homeworkId) {
+  return request({
+    url: `/api/student/homework/status/${homeworkId}`,
+    method: 'get'
+    // ✅ 不需要 params，userId 由 request.js 拦截器自动加到请求头
+  })
+}
