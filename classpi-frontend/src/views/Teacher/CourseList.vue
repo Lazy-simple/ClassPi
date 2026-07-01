@@ -233,10 +233,11 @@
               @change="onDialogSortChange"
             >
               <template #item="{ element, index }">
-                <div class="sort-item">
+                <div class="sort-item" :class="{ 'pinned-sort-item': isPinned(element) }">
                   <el-radio v-model="currentSortIndex" :label="index" class="sort-radio">
                     {{ element.name }}
                   </el-radio>
+                  <el-tag v-if="isPinned(element)" type="danger" size="small" effect="light">置顶</el-tag>
                 </div>
               </template>
             </draggable>
@@ -417,25 +418,19 @@ const initDisplayCourses = () => {
   const pinned = active.filter(c => isPinned(c));
   const unpinned = active.filter(c => !isPinned(c));
   
-  // 置顶课程按置顶顺序排序
-  pinnedCourses.value = pinned.sort((a, b) => {
-    const orderA = extra[a.id]?.pinOrder ?? 9999;
-    const orderB = extra[b.id]?.pinOrder ?? 9999;
-    if (orderA !== orderB) return orderA - orderB;
-    return b.id - a.id;
-  });
-  
-  // 非置顶课程按拖拽排序
-  unpinnedCourses.value = unpinned.sort((a, b) => {
+  const sortByOrder = (a, b) => {
     const orderA = extra[a.id]?.sortOrder ?? 9999;
     const orderB = extra[b.id]?.sortOrder ?? 9999;
     if (orderA !== orderB) return orderA - orderB;
     return b.id - a.id;
-  });
+  };
+  
+  pinnedCourses.value = pinned.sort(sortByOrder);
+  unpinnedCourses.value = unpinned.sort(sortByOrder);
 };
 
 const sortedCourses = computed(() => {
-  return unpinnedCourses.value;
+  return [...pinnedCourses.value, ...unpinnedCourses.value];
 });
 
 const archivedCourses = computed(() => {
@@ -473,10 +468,10 @@ const initSortOrder = () => {
 };
 
 // 拖拽排序保存逻辑（主页面和弹窗共用）
-const saveSortOrder = () => {
-  const list = unpinnedCourses.value;
+const saveSortOrder = (list) => {
+  const courses = list || unpinnedCourses.value;
   const extra = getExtraData();
-  list.forEach((course, idx) => {
+  courses.forEach((course, idx) => {
     if (!extra[course.id]) extra[course.id] = { sortOrder: idx, archiveSelf: false, pinned: false };
     extra[course.id].sortOrder = idx;
   });
@@ -485,13 +480,14 @@ const saveSortOrder = () => {
 
 // 主页面拖拽回调
 const onMainSortChange = () => {
-  saveSortOrder();
+  saveSortOrder(unpinnedCourses.value);
   ElMessage.success('课程顺序已更新');
 };
 
 // 弹窗排序回调
 const onDialogSortChange = () => {
-  saveSortOrder();
+  saveSortOrder(sortedCourses.value);
+  initDisplayCourses();
   ElMessage.success('课程顺序已更新');
 };
 
@@ -1043,6 +1039,7 @@ onMounted(loadCourses);
 .sort-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 14px 16px;
   border-bottom: 1px solid #f2f6fc;
   transition: background 0.2s;
@@ -1052,8 +1049,12 @@ onMounted(loadCourses);
   background: #f5f7fa;
 }
 
+.pinned-sort-item {
+  background: #fef0f0;
+}
+
 .sort-radio {
-  width: 100%;
+  flex: 1;
 }
 
 .archive-grid {
