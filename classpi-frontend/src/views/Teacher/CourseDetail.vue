@@ -135,8 +135,8 @@ const handleTabClick = (tab) => {
 
 .course-title {
   margin: 0 0 10px;
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 36px;
+  font-weight: 700;
 }
 
 .sub-info {
