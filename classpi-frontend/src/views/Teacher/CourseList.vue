@@ -220,7 +220,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="archiveDialogVisible" title="归档管理" width="700px" destroy-on-close>
+    <el-dialog v-model="archiveDialogVisible" width="700px" destroy-on-close>
       <el-tabs v-model="activeTab" class="archive-tabs">
         <el-tab-pane label="课程排序" name="sort">
           <div v-if="sortedCourses.length > 0">
@@ -234,10 +234,9 @@
             >
               <template #item="{ element, index }">
                 <div class="sort-item">
-                  <el-icon class="drag-handle"><Rank /></el-icon>
-                  <el-radio v-model="currentSortIndex" :label="index" class="sort-radio"></el-radio>
-                  <span class="sort-course-name">{{ element.name }}</span>
-                  <span class="sort-course-sub" v-if="element.department">{{ element.department }}</span>
+                  <el-radio v-model="currentSortIndex" :label="index" class="sort-radio">
+                    {{ element.name }}
+                  </el-radio>
                 </div>
               </template>
             </draggable>
@@ -1046,7 +1045,6 @@ onMounted(loadCourses);
   align-items: center;
   padding: 14px 16px;
   border-bottom: 1px solid #f2f6fc;
-  cursor: move;
   transition: background 0.2s;
 }
 
@@ -1054,25 +1052,8 @@ onMounted(loadCourses);
   background: #f5f7fa;
 }
 
-.drag-handle {
-  color: #c0c4cc;
-  margin-right: 12px;
-  font-size: 16px;
-}
-
 .sort-radio {
-  margin-right: 12px;
-}
-
-.sort-course-name {
-  font-size: 14px;
-  color: #303133;
-  flex: 1;
-}
-
-.sort-course-sub {
-  font-size: 13px;
-  color: #909399;
+  width: 100%;
 }
 
 .archive-grid {
