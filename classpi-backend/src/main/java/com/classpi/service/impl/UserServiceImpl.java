@@ -127,4 +127,43 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return Result.error("token格式错误");
         }
     }
+
+    @Override
+    public Result resetPassword(String account, String newPassword) {
+        // 1. 查询用户
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getUsername, account)
+                .or()
+                .eq(User::getPhone, account)
+                .eq(User::getDeleted, 0);
+        User user = userMapper.selectOne(wrapper);
+
+        if (user == null) {
+            return Result.error("账号不存在");
+        }
+
+        // 2. 更新密码（加密）
+        user.setPassword(encryptWithMD5(newPassword));
+        userMapper.updateById(user);
+
+        return Result.success("密码重置成功");
+    }
+
+    @Override
+    public Result sendResetCode(String account) {
+        // 查询用户是否存在（支持用户名或手机号）
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getUsername, account)
+                .or()
+                .eq(User::getPhone, account)
+                .eq(User::getDeleted, 0);
+        User user = userMapper.selectOne(wrapper);
+
+        if (user == null) {
+            return Result.error("账号不存在");
+        }
+
+        // 验证通过，返回成功
+        return Result.success("验证通过，请设置新密码");
+    }
 }

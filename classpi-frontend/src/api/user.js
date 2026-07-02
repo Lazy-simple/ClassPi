@@ -18,18 +18,19 @@ export function register(data) {
   })
 }
 
-// 获取用户信息
-export function getUserInfo() {
-  return request({
-    url: '/user/info',
-    method: 'get'
-  })
-}
-
-// 忘记密码发送验证码
+// 发送重置验证码（验证账号是否存在）
 export function sendResetCode(data) {
   return request({
     url: '/user/sendResetCode',
+    method: 'post',
+    data
+  })
+}
+
+// ✅ 重置密码
+export function resetPassword(data) {
+  return request({
+    url: '/user/resetPassword',
     method: 'post',
     data
   })

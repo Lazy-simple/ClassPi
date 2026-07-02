@@ -111,20 +111,73 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Check, ArrowRight, CircleCheckFilled } from '@element-plus/icons-vue'
+import { sendResetCode, resetPassword } from '@/api/user'  // ✅ 导入API
 
 const step = ref(0)
 const form = ref({ account: '', newPwd: '', confirmPwd: '' })
+const loading = ref(false)
 
-const nextStep = () => {
-  if (step.value === 0 && !form.value.account) { ElMessage.warning('请输入账号/手机号'); return; }
-  if (step.value === 1) {
-    if (!form.value.newPwd || !form.value.confirmPwd) { ElMessage.warning('请填写完整密码信息'); return; }
-    if (form.value.newPwd !== form.value.confirmPwd) { ElMessage.warning('两次输入的密码不一致'); return; }
+// 第一步：验证账号
+const nextStep = async () => {
+  if (step.value === 0) {
+    if (!form.value.account) {
+      ElMessage.warning('请输入账号/手机号')
+      return
+    }
+    // ✅ 调用后端验证账号
+    loading.value = true
+    try {
+      const res = await sendResetCode({ account: form.value.account })
+      if (res.code === 200) {
+        ElMessage.success('账号验证通过，请设置新密码')
+        step.value++
+      } else {
+        ElMessage.error(res.message || '账号不存在')
+      }
+    } catch (error) {
+      ElMessage.error('验证失败，请稍后重试')
+    } finally {
+      loading.value = false
+    }
+    return
   }
-  step.value++
+
+  if (step.value === 1) {
+    if (!form.value.newPwd || !form.value.confirmPwd) {
+      ElMessage.warning('请填写完整密码信息')
+      return
+    }
+    if (form.value.newPwd !== form.value.confirmPwd) {
+      ElMessage.warning('两次输入的密码不一致')
+      return
+    }
+    if (form.value.newPwd.length < 6) {
+      ElMessage.warning('密码长度不能少于6位')
+      return
+    }
+
+    // ✅ 调用后端重置密码
+    loading.value = true
+    try {
+      const res = await resetPassword({
+        account: form.value.account,
+        newPassword: form.value.newPwd
+      })
+      if (res.code === 200) {
+        ElMessage.success('密码重置成功！')
+        step.value++
+      } else {
+        ElMessage.error(res.message || '重置失败')
+      }
+    } catch (error) {
+      ElMessage.error('重置失败，请稍后重试')
+    } finally {
+      loading.value = false
+    }
+    return
+  }
 }
 </script>
-
 <style scoped>
 /* ================= 全局布局与高级背景 ================= */
 .page-wrap {
