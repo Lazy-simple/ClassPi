@@ -2,21 +2,29 @@
   <div class="course-detail-page">
     <div class="course-header-card">
       <div class="header-content">
+        <!-- 返回按钮 -->
         <div class="back-link" @click="goBack">
           <el-icon><ArrowLeft /></el-icon>
           <span>返回我的课程</span>
         </div>
-        <div class="header-right">
-          <el-badge :value="unreadNoticeCount" :hidden="unreadNoticeCount === 0" type="danger">
-            <el-button size="small" circle @click="openNoticeDrawer">
-              <el-icon><Bell /></el-icon>
-            </el-button>
-          </el-badge>
-        </div>
+
         <h1 class="course-title">{{ courseInfo.courseName || courseInfo.name || '课程名称' }}</h1>
-        <p class="sub-info">
-          课程号：{{ courseInfo.courseNo || '课程编号' }} | 教师：{{ courseInfo.teacherName || '未知教师' }} | 学分：{{ courseInfo.credit || 0 }}
-        </p>
+        <div class="sub-info-row">
+          <p class="sub-info">
+            课程号：{{ courseInfo.courseNo || '课程编号' }} | 教师：{{ courseInfo.teacherName || '未知教师' }} | 学分：{{ courseInfo.credit || 0 }}
+          </p>
+          <div class="header-right">
+            <el-button class="student-btn" @click="openStudentList">
+              <el-icon><User /></el-icon>
+              查看所有学生
+            </el-button>
+            <el-badge :value="unreadNoticeCount" :hidden="unreadNoticeCount === 0" type="danger">
+              <el-button size="small" circle @click="openNoticeDrawer">
+                <el-icon><Bell /></el-icon>
+              </el-button>
+            </el-badge>
+          </div>
+        </div>
       </div>
       <div class="header-bg"></div>
     </div>
@@ -237,6 +245,25 @@
       </div>
     </el-drawer>
 
+    <!-- 学生列表弹窗 -->
+    <el-dialog v-model="showStudentDialog" title="课程学生列表" width="600px">
+      <div v-if="studentLoading" class="loading-state">
+        <span>加载中...</span>
+      </div>
+      <div v-else-if="studentList.length === 0" class="empty-state">
+        <el-empty description="暂无学生选课" />
+      </div>
+      <div v-else class="student-list">
+        <div class="student-item" v-for="student in studentList" :key="student.id">
+          <el-avatar :size="48">{{ (student.studentName || '学').charAt(0) }}</el-avatar>
+          <div class="student-info">
+            <h4>{{ student.studentName || '未知姓名' }}</h4>
+            <p>学号：{{ student.studentId || '--' }}</p>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -248,7 +275,7 @@ import {
   User, Collection, DocumentChecked, Document, ChatDotRound, Clock,
   UploadFilled, Check, Link, Folder, Plus, ArrowLeft, RefreshRight
 } from '@element-plus/icons-vue'
-import { getStudentCourses } from '@/api/course'
+import { getStudentCourses, getCourseAllStudent } from '@/api/course'
 import { getHomeworkByCourse,getStudentHomeworkStatus } from '@/api/homework'
 import { getResourceTree, downloadResource as downloadRes } from '@/api/resource'
 import { getTopicList, publishTopic, getCommentList, addComment,deleteTopic,editTopic } from '@/api/topic'
@@ -282,6 +309,25 @@ const commentSubmitting = ref(false)
 const newComment = ref('')
 const commentAnonymous = ref(false)
 const editingTopicId = ref(null)
+
+const showStudentDialog = ref(false)
+const studentLoading = ref(false)
+const studentList = ref([])
+
+const openStudentList = async () => {
+  showStudentDialog.value = true
+  studentLoading.value = true
+  try {
+    const res = await getCourseAllStudent(courseId.value)
+    if (res.code === 200) {
+      studentList.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载学生列表失败:', error)
+  } finally {
+    studentLoading.value = false
+  }
+}
 
 
 const topicForm = ref({
@@ -688,13 +734,18 @@ onUnmounted(() => {
   z-index: 2;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .back-link {
   display: inline-flex;
   align-items: center;
   cursor: pointer;
   font-size: 14px;
   opacity: 0.8;
-  margin-bottom: 15px;
   transition: all 0.3s;
 }
 
@@ -717,6 +768,33 @@ onUnmounted(() => {
   margin: 0;
   opacity: 0.9;
   font-size: 14px;
+}
+
+.sub-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.student-btn {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 8px 20px;
+  font-size: 14px;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.student-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.student-btn .el-icon {
+  margin-right: 6px;
 }
 
 .course-tabs {
@@ -1086,5 +1164,53 @@ onUnmounted(() => {
   color: #606266;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+.student-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.student-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  margin-bottom: 12px;
+}
+
+.student-item:last-child {
+  margin-bottom: 0;
+}
+
+.student-info {
+  flex: 1;
+}
+
+.student-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  color: #303133;
+}
+
+.student-info p {
+  margin: 0;
+  font-size: 13px;
+  color: #909399;
+}
+
+.student-meta {
+  display: flex;
+  align-items: center;
+}
+
+.class-tag {
+  font-size: 12px;
+  color: #4f46e5;
+  background: #eef2ff;
+  padding: 4px 10px;
+  border-radius: 4px;
 }
 </style>

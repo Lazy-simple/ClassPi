@@ -10,9 +10,15 @@
         </div>
 
         <h1 class="course-title">{{ courseInfo.name }}</h1>
-        <p class="sub-info">
-          课程号：{{ courseInfo.courseNo }} | 学分：{{ courseInfo.credit }}
-        </p>
+        <div class="sub-info-row">
+          <p class="sub-info">
+            课程号：{{ courseInfo.courseNo }} | 学分：{{ courseInfo.credit }}
+          </p>
+          <el-button class="student-btn" @click="openStudentList">
+            <el-icon><User /></el-icon>
+            查看所有学生
+          </el-button>
+        </div>
       </div>
       <!-- 装饰背景 -->
       <div class="header-bg"></div>
@@ -37,13 +43,32 @@
         <component :is="currentComponent" :course-id="courseId" />
       </keep-alive>
     </div>
+
+    <!-- 学生列表弹窗 -->
+    <el-dialog v-model="showStudentDialog" title="课程学生列表" width="600px">
+      <div v-if="studentLoading" class="loading-state">
+        <span>加载中...</span>
+      </div>
+      <div v-else-if="studentList.length === 0" class="empty-state">
+        <el-empty description="暂无学生选课" />
+      </div>
+      <div v-else class="student-list">
+        <div class="student-item" v-for="student in studentList" :key="student.id">
+            <el-avatar :size="48">{{ (student.studentName || '学').charAt(0) }}</el-avatar>
+            <div class="student-info">
+              <h4>{{ student.studentName || '未知姓名' }}</h4>
+              <p>学号：{{ student.studentId || '--' }}</p>
+            </div>
+          </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowLeft } from '@element-plus/icons-vue';
+import { ArrowLeft, User } from '@element-plus/icons-vue';
 
 // 引入子组件 (注意路径)
 import HomeworkPublish from './HomeworkPublish.vue';
@@ -53,13 +78,32 @@ import CourseResource from './CourseResource.vue';
 // ✅ 修改：从 common 目录引入 CourseTopic
 import CourseTopic from '../common/CourseTopic.vue';
 
-import { getCourseById } from '@/api/course'; // 假设你的 api 路径是这个
+import { getCourseById, getCourseAllStudent } from '@/api/course'; // 假设你的 api 路径是这个
 
 const route = useRoute();
 const router = useRouter();
 const courseId = route.params.courseId;
 const activeTab = ref('publish-homework');
 const courseInfo = ref({});
+
+const showStudentDialog = ref(false);
+const studentLoading = ref(false);
+const studentList = ref([]);
+
+const openStudentList = async () => {
+  showStudentDialog.value = true;
+  studentLoading.value = true;
+  try {
+    const res = await getCourseAllStudent(courseId);
+    if (res.code === 200) {
+      studentList.value = res.data || [];
+    }
+  } catch (error) {
+    console.error('加载学生列表失败:', error);
+  } finally {
+    studentLoading.value = false;
+  }
+};
 
 // ✅ 修改：注册新的组件映射
 const componentMap = {
@@ -122,7 +166,6 @@ const handleTabClick = (tab) => {
   cursor: pointer;
   font-size: 14px;
   opacity: 0.8;
-  margin-bottom: 15px;
   transition: all 0.3s;
 }
 .back-link:hover {
@@ -143,6 +186,33 @@ const handleTabClick = (tab) => {
   margin: 0;
   opacity: 0.9;
   font-size: 14px;
+}
+
+.sub-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.student-btn {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 8px 20px;
+  font-size: 14px;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.student-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.student-btn .el-icon {
+  margin-right: 6px;
 }
 
 /* Tabs 容器 */
@@ -181,5 +251,64 @@ const handleTabClick = (tab) => {
   border-radius: 0 0 8px 8px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
   min-height: 500px;
+}
+
+/* 学生列表弹窗样式 */
+.student-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.student-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  margin-bottom: 12px;
+}
+
+.student-item:last-child {
+  margin-bottom: 0;
+}
+
+.student-info {
+  flex: 1;
+}
+
+.student-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  color: #303133;
+}
+
+.student-info p {
+  margin: 0;
+  font-size: 13px;
+  color: #909399;
+}
+
+.student-meta {
+  display: flex;
+  align-items: center;
+}
+
+.class-tag {
+  font-size: 12px;
+  color: #4f46e5;
+  background: #eef2ff;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.loading-state,
+.empty-state {
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
 }
 </style>
