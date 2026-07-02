@@ -12,9 +12,6 @@
         <el-button type="primary" class="create-btn" @click="openAddModal">
           <el-icon><Plus /></el-icon> 创建/加入课程
         </el-button>
-        <el-button type="primary" class="quick-btn">
-          <el-icon><Promotion /></el-icon> 快速发布活动
-        </el-button>
       </div>
     </div>
 
@@ -66,15 +63,6 @@
               <el-icon><Grid /></el-icon>
               <span>加课码：</span>
               <span class="course-code">{{ course.courseNo }}</span>
-            </div>
-
-            <div class="homework-section">
-              <div class="section-label">近期作业</div>
-              <div class="homework-list">
-                <div class="homework-item" v-for="(hw, i) in getRecentHomework(course)" :key="i">
-                  {{ hw }}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -143,15 +131,6 @@
               <span>加课码：</span>
               <span class="course-code">{{ element.courseNo }}</span>
               <el-icon class="arrow-down"><ArrowDown /></el-icon>
-            </div>
-
-            <div class="homework-section">
-              <div class="section-label">近期作业</div>
-              <div class="homework-list">
-                <div class="homework-item" v-for="(hw, i) in getRecentHomework(element)" :key="i">
-                  {{ hw }}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -293,13 +272,12 @@ import {
   updateCourse,
   deleteCourse,
   archiveCourse,
-  getCourseByNo,
   getCourseAllStudent,
   teacherJoinCourse
 } from '@/api/course';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
-  Plus, Sort, Box, Promotion, MoreFilled, Grid, ArrowDown, Avatar, Rank
+  Plus, Sort, Box, MoreFilled, Grid, ArrowDown, Avatar, Rank
 } from '@element-plus/icons-vue';
 //import draggable from 'vuedraggable';
 
@@ -388,11 +366,6 @@ const isTeacherOfCourse = (course) => {
 const getCoverColor = (id) => {
   const idx = typeof id === 'number' ? id % coverColors.length : 0;
   return coverColors[idx];
-};
-
-const getRecentHomework = (course) => {
-  const homeworks = ['小组作业', 'JavaEE小作业', '范例_第一次作业', '期中作业', '期末大作业'];
-  return homeworks.slice(0, 2 + (course.id % 2));
 };
 
 // 核心：主页面可拖拽的课程列表（非置顶）
@@ -907,7 +880,7 @@ onMounted(loadCourses);
 
 .course-body {
   padding: 12px 16px;
-  flex: 1;
+  flex: 0;
 }
 
 .course-code-row {

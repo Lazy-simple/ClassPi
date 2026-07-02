@@ -203,16 +203,64 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result getStudentCourses(String studentId) {
+        // 1. 先查选课记录
         QueryWrapper<StudentCourse> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("student_id", studentId);
         queryWrapper.eq("status", 1);
-        List<StudentCourse> courses = studentCourseMapper.selectList(queryWrapper);
+        List<StudentCourse> selectedCourses = studentCourseMapper.selectList(queryWrapper);
 
-        // 优化：无数据时返回成功，前端根据空列表处理，而非错误
-        if (courses.isEmpty()) {
-            return Result.success("该学生暂无已选课程", courses); // 成功+空列表
+        if (selectedCourses.isEmpty()) {
+            return Result.success("该学生暂无已选课程", selectedCourses);
         }
-        return Result.success("获取学生课程列表成功", courses);
+
+        // 2. 收集课程ID
+        List<Integer> courseIds = selectedCourses.stream()
+                .map(StudentCourse::getCourseId)
+                .collect(Collectors.toList());
+
+        // 3. 查询课程表获取完整信息
+        QueryWrapper<Course> courseWrapper = new QueryWrapper<>();
+        courseWrapper.in("id", courseIds);
+        List<Course> courseList = courseMapper.selectList(courseWrapper);
+
+        // 4. 构建 courseId -> Course 的映射
+        java.util.Map<Integer, Course> courseMap = courseList.stream()
+                .collect(Collectors.toMap(Course::getId, c -> c));
+
+        // 5. 组装数据：把课程信息补充到选课记录中
+        List<java.util.Map<String, Object>> result = new ArrayList<>();
+        for (StudentCourse sc : selectedCourses) {
+            Course course = courseMap.get(sc.getCourseId());
+            java.util.Map<String, Object> item = new java.util.HashMap<>();
+            item.put("id", sc.getId());
+            item.put("studentId", sc.getStudentId());
+            item.put("studentName", sc.getStudentName());
+            item.put("courseId", sc.getCourseId());
+            item.put("courseNo", sc.getCourseNo());
+            item.put("courseName", sc.getCourseName());
+            item.put("status", sc.getStatus());
+            item.put("createTime", sc.getCreateTime());
+            // ✅ 从课程表补充字段
+            if (course != null) {
+                item.put("credit", course.getCredit());
+                item.put("teacherName", course.getTeacherName());
+                item.put("teacherId", course.getTeacherId());
+                item.put("capacity", course.getCapacity());
+                item.put("enrolledCount", course.getEnrolledCount());
+                item.put("schedule", course.getSchedule());
+                item.put("classroom", course.getClassroom());
+                item.put("department", course.getDepartment());
+            } else {
+                // 课程被删了，给默认值
+                item.put("credit", 0);
+                item.put("teacherName", "未知教师");
+                item.put("capacity", 0);
+                item.put("enrolledCount", 0);
+            }
+            result.add(item);
+        }
+
+        return Result.success("获取学生课程列表成功", result);
     }
 
     @Override
@@ -299,35 +347,68 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result getStudentCourses(String studentId, Boolean includeArchived) {
+        // 1. 查选课记录
         QueryWrapper<StudentCourse> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("student_id", studentId)
                 .eq("status", 1);
-        List<StudentCourse> courses = studentCourseMapper.selectList(queryWrapper);
+        List<StudentCourse> selectedCourses = studentCourseMapper.selectList(queryWrapper);
 
-        if (courses.isEmpty()) {
-            return Result.success("该学生暂无已选课程", courses);
+        if (selectedCourses.isEmpty()) {
+            return Result.success("该学生暂无已选课程", new ArrayList<>());
         }
 
-        // ✅ 如果不包含归档，过滤掉已归档的课程
+        // 2. 收集课程ID
+        List<Integer> courseIds = selectedCourses.stream()
+                .map(StudentCourse::getCourseId)
+                .collect(Collectors.toList());
+
+        // 3. 查询课程表（根据 includeArchived 决定是否过滤）
+        QueryWrapper<Course> courseWrapper = new QueryWrapper<>();
+        courseWrapper.in("id", courseIds);
         if (!includeArchived) {
-            List<Integer> courseIds = courses.stream()
-                    .map(StudentCourse::getCourseId)
-                    .collect(Collectors.toList());
-            if (!courseIds.isEmpty()) {
-                QueryWrapper<Course> courseWrapper = new QueryWrapper<>();
-                courseWrapper.in("id", courseIds)
-                        .eq("status", 0);
-                List<Course> activeCourses = courseMapper.selectList(courseWrapper);
-                Set<Integer> activeIds = activeCourses.stream()
-                        .map(Course::getId)
-                        .collect(Collectors.toSet());
-                courses = courses.stream()
-                        .filter(sc -> activeIds.contains(sc.getCourseId()))
-                        .collect(Collectors.toList());
+            courseWrapper.eq("status", 0);
+        }
+        List<Course> courseList = courseMapper.selectList(courseWrapper);
+        java.util.Map<Integer, Course> courseMap = courseList.stream()
+                .collect(Collectors.toMap(Course::getId, c -> c));
+
+        // 4. 组装数据
+        List<java.util.Map<String, Object>> result = new ArrayList<>();
+        for (StudentCourse sc : selectedCourses) {
+            Course course = courseMap.get(sc.getCourseId());
+            // 如果不包含归档且课程不存在（已归档），跳过
+            if (!includeArchived && course == null) {
+                continue;
             }
+            java.util.Map<String, Object> item = new java.util.HashMap<>();
+            item.put("id", sc.getId());
+            item.put("studentId", sc.getStudentId());
+            item.put("studentName", sc.getStudentName());
+            item.put("courseId", sc.getCourseId());
+            item.put("courseNo", sc.getCourseNo());
+            item.put("courseName", sc.getCourseName());
+            item.put("status", sc.getStatus());
+            item.put("createTime", sc.getCreateTime());
+
+            if (course != null) {
+                item.put("credit", course.getCredit());
+                item.put("teacherName", course.getTeacherName());
+                item.put("teacherId", course.getTeacherId());
+                item.put("capacity", course.getCapacity());
+                item.put("enrolledCount", course.getEnrolledCount());
+                item.put("schedule", course.getSchedule());
+                item.put("classroom", course.getClassroom());
+                item.put("department", course.getDepartment());
+            } else {
+                item.put("credit", 0);
+                item.put("teacherName", "未知教师");
+                item.put("capacity", 0);
+                item.put("enrolledCount", 0);
+            }
+            result.add(item);
         }
 
-        return Result.success("获取学生课程列表成功", courses);
+        return Result.success("获取学生课程列表成功", result);
     }
 
     @Override

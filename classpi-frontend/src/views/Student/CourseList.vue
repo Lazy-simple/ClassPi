@@ -377,6 +377,7 @@ const availableCourses = computed(() => {
   return courses;
 });
 const isSelected = (cid) => selectedCourses.value.some(sc => sc.courseId === cid);
+
 const loadCourses = async () => {
   if (!userStore.userInfo || !userStore.userInfo.id) {
     console.warn("用户信息尚未加载，跳过课程请求");
@@ -389,8 +390,11 @@ const loadCourses = async () => {
       getStudentCourses(userStore.userInfo.id)
     ]);
     if (allRes.code === 200) allCourses.value = allRes.data || [];
-    if (selRes.code === 200) selectedCourses.value = selRes.data || [];
-    // 加载课程后，更新列表
+    if (selRes.code === 200) {
+      // ✅ 打印看看数据结构
+      console.log('选课返回数据:', selRes.data);
+      selectedCourses.value = selRes.data || [];
+    }
     updateUnpinnedList();
     loadCourseOrder();
   } catch (error) {
@@ -400,6 +404,7 @@ const loadCourses = async () => {
     loading.value = false;
   }
 };
+
 const handleSelect = async (course) => {
   try {
     const res = await selectCourse({
