@@ -466,12 +466,17 @@ const aiEval = async (row) => {
 // 采纳AI评语
 const applyAiComment = () => {
   if (currentAiRow.value) {
-    // 解析AI返回的内容，提取分数和评语
     const text = aiText.value
-    // 简单提取：尝试匹配数字分数
-    const scoreMatch = text.match(/(\d+)\s*分/)
-    const score = scoreMatch ? parseInt(scoreMatch[1]) : 60
-    const comment = text.replace(/分数[：:]\s*\d+\s*分[，,、\s]*/, '').trim()
+
+    // ✅ 提取分数 - 匹配 "评分：** 70/100 分" 或 "评分：70/100 分"
+    let score = 60
+    const scoreMatch = text.match(/评分[：:]\s*\**\s*(\d+)\s*\/?\s*\d*\s*分/)
+    if (scoreMatch) {
+      score = parseInt(scoreMatch[1])
+    }
+
+    // 提取评语（去掉分数行）
+    const comment = text.replace(/评分[：:]\s*\**\s*\d+\s*\/?\s*\d*\s*分[，,、\s]*/, '').trim()
 
     correctForm.value = {
       submitId: currentAiRow.value.id,
